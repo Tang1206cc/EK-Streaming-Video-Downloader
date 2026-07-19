@@ -742,7 +742,9 @@ function VideoDownloader() {
         <header className="toolbar app-home-toolbar">
           <div className="app-home-heading">
             <div className="title-row">
-              <h1>EK流媒体视频下载器</h1>
+              <h1>
+                <img className="app-wordmark" src="./brand/ek-streamdl-wordmark.png" alt="EK StreamDL" />
+              </h1>
               <a className="author-home-link" href="https://github.com/Tang1206cc">
                 作者：唐梓耀（Emir Kaya） 主页：https://github.com/Tang1206cc
               </a>

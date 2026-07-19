@@ -71,8 +71,17 @@ button {
 }
 
 .app-home-toolbar h1 {
-  color: #152033;
-  font-size: 30px;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.app-wordmark {
+  display: block;
+  width: auto;
+  height: 34px;
+  max-width: min(320px, 44vw);
+  object-fit: contain;
 }
 
 .app-home-heading {
