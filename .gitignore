@@ -1,0 +1,67 @@
+# macOS / Windows
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs and runtime files
+*.log
+logs/
+*.pid
+*.pid.lock
+
+# Dependencies and caches
+node_modules/
+.pnpm-store/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Build and test output
+dist/
+build/
+coverage/
+.coverage
+.cache/
+tmp/
+temp/
+
+# Xcode / Swift
+DerivedData/
+.build/
+*.xcuserstate
+xcuserdata/
+
+# Downloaded/generated media
+downloads/
+output/
+*.mp4
+*.mkv
+*.webm
+*.flv
+*.m4v
+*.mov
+*.avi
+*.mp3
+*.m4a
+*.aac
+*.wav
+*.flac
+*.part
+*.ytdl
