@@ -1,0 +1,30 @@
+{
+  "name": "ek-streamdl-macos",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "macOS local streaming video downloader project.",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "electron": "pnpm run build && electron .",
+    "build:web": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && tsc -p electron/tsconfig.json",
+    "test": "vitest run",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "vitest": "^4.1.10"
+  }
+}

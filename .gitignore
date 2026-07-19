@@ -35,6 +35,9 @@ venv/
 
 # Build and test output
 dist/
+!macos/dist/
+!macos/dist/**
+dist-electron/
 build/
 coverage/
 .coverage
@@ -44,6 +47,7 @@ temp/
 
 # Xcode / Swift
 DerivedData/
+.xcode-derived/
 .build/
 *.xcuserstate
 xcuserdata/

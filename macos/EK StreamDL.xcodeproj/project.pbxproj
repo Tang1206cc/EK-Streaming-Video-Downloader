@@ -1,0 +1,534 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		100000000000000000000101 /* EKStreamDLApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000201 /* EKStreamDLApp.swift */; };
+		100000000000000000000102 /* WebAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000202 /* WebAppView.swift */; };
+		100000000000000000000103 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000203 /* Models.swift */; };
+		100000000000000000000104 /* URLTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000204 /* URLTools.swift */; };
+		100000000000000000000105 /* YTDLPService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000205 /* YTDLPService.swift */; };
+		100000000000000000000106 /* VideoBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000206 /* VideoBridge.swift */; };
+		100000000000000000000107 /* dist in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000207 /* dist */; };
+		100000000000000000000108 /* RuntimeEnvironmentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000208 /* RuntimeEnvironmentService.swift */; };
+		100000000000000000000109 /* WeChatChannelsAuthorization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000209 /* WeChatChannelsAuthorization.swift */; };
+		10000000000000000000010A /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020A /* AppSettings.swift */; };
+		10000000000000000000010B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020B /* SettingsView.swift */; };
+		10000000000000000000010C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020C /* AppDelegate.swift */; };
+		10000000000000000000010D /* Version.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020D /* Version.swift */; };
+		10000000000000000000010E /* GitHubReleasesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020E /* GitHubReleasesAPI.swift */; };
+		10000000000000000000010F /* NSAlert+SystemStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000020F /* NSAlert+SystemStyle.swift */; };
+		100000000000000000000110 /* DownloadWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000210 /* DownloadWindowController.swift */; };
+		100000000000000000000111 /* Installer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000211 /* Installer.swift */; };
+		100000000000000000000112 /* UpdateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000212 /* UpdateManager.swift */; };
+		100000000000000000000113 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000213 /* main.swift */; };
+		100000000000000000000114 /* InstallPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000214 /* InstallPlan.swift */; };
+		100000000000000000000115 /* FileOps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000215 /* FileOps.swift */; };
+		100000000000000000000116 /* Relaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000216 /* Relaunch.swift */; };
+		100000000000000000000117 /* UpdaterHelper in CopyFiles */ = {isa = PBXBuildFile; fileRef = 100000000000000000000302 /* UpdaterHelper */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		100000000000000000000118 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000217 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		100000000000000000000604 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 100000000000000000000602 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 100000000000000000000603;
+			remoteInfo = UpdaterHelper;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		100000000000000000000805 /* Copy UpdaterHelper */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
+			files = (
+				100000000000000000000117 /* UpdaterHelper in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		100000000000000000000201 /* EKStreamDLApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EKStreamDLApp.swift; sourceTree = "<group>"; };
+		100000000000000000000202 /* WebAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAppView.swift; sourceTree = "<group>"; };
+		100000000000000000000203 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		100000000000000000000204 /* URLTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLTools.swift; sourceTree = "<group>"; };
+		100000000000000000000205 /* YTDLPService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YTDLPService.swift; sourceTree = "<group>"; };
+		100000000000000000000206 /* VideoBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoBridge.swift; sourceTree = "<group>"; };
+		100000000000000000000207 /* dist */ = {isa = PBXFileReference; lastKnownFileType = folder; name = dist; path = dist; sourceTree = "<group>"; };
+		100000000000000000000208 /* RuntimeEnvironmentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeEnvironmentService.swift; sourceTree = "<group>"; };
+		100000000000000000000209 /* WeChatChannelsAuthorization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeChatChannelsAuthorization.swift; sourceTree = "<group>"; };
+		10000000000000000000020A /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		10000000000000000000020B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		10000000000000000000020C /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		10000000000000000000020D /* Version.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Version.swift; sourceTree = "<group>"; };
+		10000000000000000000020E /* GitHubReleasesAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubReleasesAPI.swift; sourceTree = "<group>"; };
+		10000000000000000000020F /* NSAlert+SystemStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSAlert+SystemStyle.swift"; sourceTree = "<group>"; };
+		100000000000000000000210 /* DownloadWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadWindowController.swift; sourceTree = "<group>"; };
+		100000000000000000000211 /* Installer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Installer.swift; sourceTree = "<group>"; };
+		100000000000000000000212 /* UpdateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateManager.swift; sourceTree = "<group>"; };
+		100000000000000000000213 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		100000000000000000000214 /* InstallPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallPlan.swift; sourceTree = "<group>"; };
+		100000000000000000000215 /* FileOps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOps.swift; sourceTree = "<group>"; };
+		100000000000000000000216 /* Relaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Relaunch.swift; sourceTree = "<group>"; };
+		100000000000000000000217 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = EKStreamDL/Assets.xcassets; sourceTree = "<group>"; };
+		100000000000000000000301 /* EK StreamDL.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "EK StreamDL.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		100000000000000000000302 /* UpdaterHelper */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = UpdaterHelper; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		100000000000000000000401 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		100000000000000000000403 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		100000000000000000000501 = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000502 /* App */,
+				100000000000000000000217 /* Assets.xcassets */,
+				100000000000000000000505 /* UpdaterHelper */,
+				100000000000000000000207 /* dist */,
+				100000000000000000000503 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		100000000000000000000502 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000201 /* EKStreamDLApp.swift */,
+				100000000000000000000202 /* WebAppView.swift */,
+				100000000000000000000203 /* Models.swift */,
+				100000000000000000000204 /* URLTools.swift */,
+				100000000000000000000205 /* YTDLPService.swift */,
+				100000000000000000000206 /* VideoBridge.swift */,
+				100000000000000000000208 /* RuntimeEnvironmentService.swift */,
+				100000000000000000000209 /* WeChatChannelsAuthorization.swift */,
+				10000000000000000000020A /* AppSettings.swift */,
+				10000000000000000000020B /* SettingsView.swift */,
+				10000000000000000000020C /* AppDelegate.swift */,
+				100000000000000000000504 /* Update */,
+			);
+			path = EKStreamDL/App;
+			sourceTree = "<group>";
+		};
+		100000000000000000000503 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000301 /* EK StreamDL.app */,
+				100000000000000000000302 /* UpdaterHelper */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		100000000000000000000504 /* Update */ = {
+			isa = PBXGroup;
+			children = (
+				10000000000000000000020D /* Version.swift */,
+				10000000000000000000020E /* GitHubReleasesAPI.swift */,
+				10000000000000000000020F /* NSAlert+SystemStyle.swift */,
+				100000000000000000000210 /* DownloadWindowController.swift */,
+				100000000000000000000211 /* Installer.swift */,
+				100000000000000000000212 /* UpdateManager.swift */,
+			);
+			path = Update;
+			sourceTree = "<group>";
+		};
+		100000000000000000000505 /* UpdaterHelper */ = {
+			isa = PBXGroup;
+			children = (
+				100000000000000000000213 /* main.swift */,
+				100000000000000000000214 /* InstallPlan.swift */,
+				100000000000000000000215 /* FileOps.swift */,
+				100000000000000000000216 /* Relaunch.swift */,
+			);
+			path = UpdaterHelper;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		100000000000000000000601 /* EK StreamDL */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 100000000000000000000901 /* Build configuration list for PBXNativeTarget "EK StreamDL" */;
+			buildPhases = (
+				100000000000000000000701 /* Build Web UI */,
+				100000000000000000000801 /* Sources */,
+				100000000000000000000401 /* Frameworks */,
+				100000000000000000000802 /* Resources */,
+				100000000000000000000805 /* Copy UpdaterHelper */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				100000000000000000000605 /* PBXTargetDependency */,
+			);
+			name = "EK StreamDL";
+			productName = "EK StreamDL";
+			productReference = 100000000000000000000301 /* EK StreamDL.app */;
+			productType = "com.apple.product-type.application";
+		};
+		100000000000000000000603 /* UpdaterHelper */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 100000000000000000000903 /* Build configuration list for PBXNativeTarget "UpdaterHelper" */;
+			buildPhases = (
+				100000000000000000000803 /* Sources */,
+				100000000000000000000403 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = UpdaterHelper;
+			productName = UpdaterHelper;
+			productReference = 100000000000000000000302 /* UpdaterHelper */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		100000000000000000000602 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					100000000000000000000601 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					100000000000000000000603 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = 100000000000000000000902 /* Build configuration list for PBXProject "EK StreamDL" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 100000000000000000000501;
+			productRefGroup = 100000000000000000000503 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				100000000000000000000601 /* EK StreamDL */,
+				100000000000000000000603 /* UpdaterHelper */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		100000000000000000000802 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000107 /* dist in Resources */,
+				100000000000000000000118 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		100000000000000000000701 /* Build Web UI */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Build Web UI";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd \"$SRCROOT\"\nif [ -f \"dist/index.html\" ] && ! grep -q 'src=\"/assets\\|href=\"/assets' \"dist/index.html\"; then\n  echo \"Using existing dist resources. Run pnpm run build:web manually before Xcode if UI changed.\"\n  exit 0\nfi\n\nif [ -x \"node_modules/.bin/tsc\" ] && [ -x \"node_modules/.bin/vite\" ]; then\n  export PATH=\"$HOME/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH\"\n  node_modules/.bin/tsc --noEmit && node_modules/.bin/vite build\nelse\n  echo \"error: dist/index.html is missing or has web-only absolute asset paths, and local frontend tools are missing. Run pnpm install and pnpm run build:web before Xcode.\"\n  exit 1\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		100000000000000000000801 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000101 /* EKStreamDLApp.swift in Sources */,
+				100000000000000000000102 /* WebAppView.swift in Sources */,
+				100000000000000000000103 /* Models.swift in Sources */,
+				100000000000000000000104 /* URLTools.swift in Sources */,
+				100000000000000000000105 /* YTDLPService.swift in Sources */,
+				100000000000000000000106 /* VideoBridge.swift in Sources */,
+				100000000000000000000108 /* RuntimeEnvironmentService.swift in Sources */,
+				100000000000000000000109 /* WeChatChannelsAuthorization.swift in Sources */,
+				10000000000000000000010A /* AppSettings.swift in Sources */,
+				10000000000000000000010B /* SettingsView.swift in Sources */,
+				10000000000000000000010C /* AppDelegate.swift in Sources */,
+				10000000000000000000010D /* Version.swift in Sources */,
+				10000000000000000000010E /* GitHubReleasesAPI.swift in Sources */,
+				10000000000000000000010F /* NSAlert+SystemStyle.swift in Sources */,
+				100000000000000000000110 /* DownloadWindowController.swift in Sources */,
+				100000000000000000000111 /* Installer.swift in Sources */,
+				100000000000000000000112 /* UpdateManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		100000000000000000000803 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				100000000000000000000113 /* main.swift in Sources */,
+				100000000000000000000114 /* InstallPlan.swift in Sources */,
+				100000000000000000000115 /* FileOps.swift in Sources */,
+				100000000000000000000116 /* Relaunch.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		100000000000000000000605 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 100000000000000000000603 /* UpdaterHelper */;
+			targetProxy = 100000000000000000000604 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		100000000000000000000A01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		100000000000000000000A02 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		100000000000000000000A03 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "EK StreamDL";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tang1206cc.ekstreamdl;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		100000000000000000000A04 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "EK StreamDL";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tang1206cc.ekstreamdl;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		100000000000000000000B01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		100000000000000000000B02 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_HARDENED_RUNTIME = NO;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		100000000000000000000901 /* Build configuration list for PBXNativeTarget "EK StreamDL" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000A03 /* Debug */,
+				100000000000000000000A04 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		100000000000000000000902 /* Build configuration list for PBXProject "EK StreamDL" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000A01 /* Debug */,
+				100000000000000000000A02 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		100000000000000000000903 /* Build configuration list for PBXNativeTarget "UpdaterHelper" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000B01 /* Debug */,
+				100000000000000000000B02 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 100000000000000000000602 /* Project object */;
+}

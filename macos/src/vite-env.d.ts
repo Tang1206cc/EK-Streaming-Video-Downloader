@@ -1,0 +1,15 @@
+/// <reference types="vite/client" />
+
+import type { NativeVideoBridge } from "./shared/types";
+
+declare global {
+  interface Window {
+    __ekStreamDLInitialRoute?: "video-downloader";
+    ekStreamDLDesktop?: {
+      platform: string;
+      nativeBridge?: NativeVideoBridge;
+    };
+  }
+}
+
+export {};
