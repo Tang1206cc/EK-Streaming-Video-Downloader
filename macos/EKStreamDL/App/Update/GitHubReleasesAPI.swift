@@ -15,12 +15,15 @@ struct GitHubRelease: Decodable {
 
 enum ReleaseAssetSelector {
     static func preferredMacOSAssetNames(for version: Version) -> [String] {
-        ["macOS-universal-EK StreamDL-\(version.description).zip"]
+        [
+            "macOS-universal-EK StreamDL-\(version.description).zip",
+            "macOS-universal-EK.StreamDL-\(version.description).zip",
+        ]
     }
 
     static func macOSAsset(in assets: [GitHubAsset], version: Version) -> GitHubAsset? {
-        guard let expectedName = preferredMacOSAssetNames(for: version).first else { return nil }
-        return assets.first(where: { $0.name == expectedName })
+        let expectedNames = preferredMacOSAssetNames(for: version)
+        return assets.first(where: { expectedNames.contains($0.name) })
     }
 }
 
