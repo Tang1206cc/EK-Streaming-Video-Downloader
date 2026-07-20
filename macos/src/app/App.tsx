@@ -123,6 +123,7 @@ function VideoDownloader() {
   const [error, setError] = useState("");
   const [isEnvironmentModalOpen, setIsEnvironmentModalOpen] = useState(false);
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [isDownloadListOpen, setIsDownloadListOpen] = useState(false);
   const [downloadListTab, setDownloadListTab] = useState<DownloadListTab>("active");
   const [isDownloadQueuePaused, setIsDownloadQueuePaused] = useState(false);
@@ -764,7 +765,12 @@ function VideoDownloader() {
             >
               <SettingsGearIcon />
             </button>
-            <span className="platform-pill">macOS</span>
+            <div className="app-info-pills">
+              <span className="platform-pill">macOS</span>
+              <button type="button" className="about-pill" onClick={() => setIsAboutModalOpen(true)}>
+                关于
+              </button>
+            </div>
           </div>
         </header>
 
@@ -989,6 +995,8 @@ function VideoDownloader() {
         <EnvironmentSetupModal onClose={() => setIsEnvironmentModalOpen(false)} />
       ) : null}
 
+      {isAboutModalOpen ? <AboutModal onClose={() => setIsAboutModalOpen(false)} /> : null}
+
       {isSupportModalOpen ? (
         <div className="modal-backdrop" role="presentation" onClick={() => setIsSupportModalOpen(false)}>
           <section
@@ -1024,6 +1032,47 @@ function VideoDownloader() {
         />
       ) : null}
     </main>
+  );
+}
+
+function AboutModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section
+        className="about-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="about-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="about-modal-head">
+          <span aria-hidden="true" />
+          <h2 id="about-modal-title">关于</h2>
+          <button type="button" className="about-modal-close" aria-label="关闭关于窗口" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        <div className="about-contact-list">
+          <a className="about-contact-card about-contact-link" href="https://b23.tv/HzxdJwK">
+            <span>bilibili弹幕网：EmirKaya（UID:3546715558775600）</span>
+            <small>点击可跳转 ↗</small>
+          </a>
+          <a className="about-contact-card about-contact-link" href="https://xhslink.com/m/5x8KUzU0lwn">
+            <span>小红书：EmirKaya（Tangzyhard）</span>
+            <small>点击可跳转 ↗</small>
+          </a>
+          <div className="about-contact-card about-copyable">QQ：2410710390（邮箱同号）</div>
+          <div className="about-contact-card about-copyable">QQ群：922281790</div>
+        </div>
+
+        <img
+          className="about-visual"
+          src="./about/ek-author-card.png"
+          alt="EK StreamDL 作者与版权信息"
+        />
+      </section>
+    </div>
   );
 }
 
