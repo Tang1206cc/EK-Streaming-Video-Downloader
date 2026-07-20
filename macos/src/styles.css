@@ -65,8 +65,8 @@ button {
 
 .app-home-toolbar {
   align-items: flex-start;
-  margin-bottom: 28px;
-  padding-bottom: 20px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid #e3e8f1;
 }
 
