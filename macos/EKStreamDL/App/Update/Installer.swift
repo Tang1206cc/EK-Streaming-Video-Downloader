@@ -19,17 +19,21 @@ enum Installer {
             throw NSError(
                 domain: "Installer",
                 code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "解压更新包失败"]
+                userInfo: [NSLocalizedDescriptionKey: AppText.text("解压更新包失败", "解壓縮更新套件失敗", "Unable to extract the update")]
             )
         }
     }
 
     static func installAndRelaunch(newAppURL: URL) throws {
         let alert = NSAlert()
-        alert.messageText = "即将安装更新"
-        alert.informativeText = "应用将退出，并把新版本安装到“应用程序”文件夹后重新启动。"
-        alert.addButton(withTitle: "继续")
-        alert.addButton(withTitle: "取消")
+        alert.messageText = AppText.text("即将安装更新", "即將安裝更新", "Ready to Install Update")
+        alert.informativeText = AppText.text(
+            "应用将退出，并把新版本安装到“应用程序”文件夹后重新启动。",
+            "應用程式將退出，新版本會安裝至「應用程式」資料夾，然後重新啟動。",
+            "The app will quit, install the new version in the Applications folder, and relaunch."
+        )
+        alert.addButton(withTitle: AppText.text("继续", "繼續", "Continue"))
+        alert.addButton(withTitle: AppText.text("取消", "取消", "Cancel"))
         guard alert.runModalWithSystemStyle() == .alertFirstButtonReturn else { return }
 
         let helperURL = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/UpdaterHelper")
@@ -37,7 +41,7 @@ enum Installer {
             throw NSError(
                 domain: "Installer",
                 code: 2,
-                userInfo: [NSLocalizedDescriptionKey: "未找到更新助手，请重新下载安装完整版本"]
+                userInfo: [NSLocalizedDescriptionKey: AppText.text("未找到更新助手，请重新下载安装完整版本", "找不到更新輔助程式，請重新下載並安裝完整版本", "The update helper is missing. Download and reinstall the complete app.")]
             )
         }
 
@@ -65,7 +69,7 @@ enum Installer {
             throw NSError(
                 domain: "Installer",
                 code: 3,
-                userInfo: [NSLocalizedDescriptionKey: "无法启动更新助手"]
+                userInfo: [NSLocalizedDescriptionKey: AppText.text("无法启动更新助手", "無法啟動更新輔助程式", "Unable to start the update helper")]
             )
         }
 

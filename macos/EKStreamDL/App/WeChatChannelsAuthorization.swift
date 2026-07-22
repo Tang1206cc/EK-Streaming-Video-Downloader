@@ -163,7 +163,7 @@ final class WeChatChannelsAuthorization: NSObject, NSWindowDelegate, WKNavigatio
                 backing: .buffered,
                 defer: false
             )
-            window.title = "微信视频号授权 · 腾讯元宝"
+            window.title = AppText.text("微信视频号授权 · 腾讯元宝", "微信影片號授權 · 騰訊元寶", "WeChat Channels Authorization · Tencent Yuanbao")
             window.minSize = NSSize(width: 760, height: 620)
             window.contentView = webView
             window.isReleasedWhenClosed = false

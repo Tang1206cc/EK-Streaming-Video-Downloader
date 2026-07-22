@@ -36,6 +36,13 @@ struct WebAppView: NSViewRepresentable {
         )
         userContentController.addUserScript(
             WKUserScript(
+                source: NativeLanguageScript.source(language: AppSettings.language.rawValue),
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: true
+            )
+        )
+        userContentController.addUserScript(
+            WKUserScript(
                 source: NativeBridgeScript.source,
                 injectionTime: .atDocumentStart,
                 forMainFrameOnly: true
@@ -67,7 +74,7 @@ struct WebAppView: NSViewRepresentable {
             }
         } else {
             webView.loadHTMLString(
-                "<main style='font-family:-apple-system;padding:32px'>未找到前端资源，请先执行 pnpm run build。</main>",
+                "<main style='font-family:-apple-system;padding:32px'>\(AppText.text("未找到前端资源，请先执行 pnpm run build。", "找不到前端資源，請先執行 pnpm run build。", "Frontend resources are missing. Run pnpm run build first."))</main>",
                 baseURL: nil
             )
         }
@@ -130,6 +137,7 @@ struct WebAppView: NSViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate {
         let bridge = VideoBridge()
         private var appearanceObserver: NSObjectProtocol?
+        private var languageObserver: NSObjectProtocol?
 
         weak var webView: WKWebView? {
             didSet {
@@ -147,16 +155,27 @@ struct WebAppView: NSViewRepresentable {
             ) { [weak self] _ in
                 self?.applyTheme()
             }
+            languageObserver = NotificationCenter.default.addObserver(
+                forName: AppSettings.applicationLanguageDidChangeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.applyLanguage()
+            }
         }
 
         deinit {
             if let appearanceObserver {
                 NotificationCenter.default.removeObserver(appearanceObserver)
             }
+            if let languageObserver {
+                NotificationCenter.default.removeObserver(languageObserver)
+            }
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             applyTheme()
+            applyLanguage()
         }
 
         private func applyTheme() {
@@ -170,6 +189,11 @@ struct WebAppView: NSViewRepresentable {
                     self?.webView?.evaluateJavaScript("window.__ekStreamDLApplyThemeMode?.('\(mode)');")
                 }
             }
+        }
+
+        private func applyLanguage() {
+            let language = AppSettings.language.rawValue
+            webView?.evaluateJavaScript("window.__ekStreamDLApplyLanguage?.('\(language)');")
         }
 
         func webView(
@@ -216,7 +240,7 @@ final class ToolWindowManager: NSObject, NSWindowDelegate {
             defer: false
         )
         window.contentViewController = hostingController
-        window.title = "EK流媒体视频下载器"
+        window.title = "EK StreamDL"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.minSize = NSSize(width: 920, height: 700)
@@ -280,6 +304,26 @@ enum NativeThemeScript {
             systemDarkMode.addListener(handleSystemThemeChange);
           }
           applyTheme();
+        })();
+        """
+    }
+}
+
+enum NativeLanguageScript {
+    static func source(language: String) -> String {
+        """
+        (() => {
+          const supportedLanguages = ["zh-Hans", "zh-Hant", "en"];
+          const normalizeLanguage = (value) => supportedLanguages.includes(value) ? value : "zh-Hans";
+          window.__ekStreamDLLanguage = normalizeLanguage("\(language)");
+          document.documentElement.lang = window.__ekStreamDLLanguage;
+          window.__ekStreamDLApplyLanguage = (value) => {
+            const nextLanguage = normalizeLanguage(value);
+            if (window.__ekStreamDLLanguage === nextLanguage) return;
+            window.__ekStreamDLLanguage = nextLanguage;
+            document.documentElement.lang = nextLanguage;
+            window.dispatchEvent(new CustomEvent("ek-streamdl-language-change", { detail: nextLanguage }));
+          };
         })();
         """
     }

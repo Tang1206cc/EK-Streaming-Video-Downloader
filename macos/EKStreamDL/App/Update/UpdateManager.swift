@@ -32,7 +32,11 @@ final class UpdateManager {
 
                 if localVersion >= latestVersion {
                     if interactive {
-                        showAlert(title: "提示", message: "当前已是最新版本！", buttonTitles: ["好"])
+                        showAlert(
+                            title: AppText.text("提示", "提示", "Up to Date"),
+                            message: AppText.text("当前已是最新版本！", "目前已是最新版本！", "You’re using the latest version."),
+                            buttonTitles: [AppText.text("好", "好", "OK")]
+                        )
                     }
                     return
                 }
@@ -59,8 +63,10 @@ final class UpdateManager {
                 }
             } catch {
                 if interactive {
-                    let title = error is GitHubReleaseError ? "检查结果" : "检查失败"
-                    showAlert(title: title, message: error.localizedDescription, buttonTitles: ["好"])
+                    let title = error is GitHubReleaseError
+                        ? AppText.text("检查结果", "檢查結果", "Update Check")
+                        : AppText.text("检查失败", "檢查失敗", "Unable to Check for Updates")
+                    showAlert(title: title, message: error.localizedDescription, buttonTitles: [AppText.text("好", "好", "OK")])
                 }
             }
         }
@@ -91,22 +97,26 @@ final class UpdateManager {
             ?? "EK StreamDL"
 
         let alert = NSAlert()
-        alert.messageText = "\(appName) 有新版本可用"
-        alert.informativeText = "版本：v\(localVersion.description) - v\(latestVersion.description)\n可立即下载并安装更新。"
+        alert.messageText = AppText.text("\(appName) 有新版本可用", "\(appName) 有新版本可用", "A new version of \(appName) is available")
+        alert.informativeText = AppText.text(
+            "版本：v\(localVersion.description) - v\(latestVersion.description)\n可立即下载并安装更新。",
+            "版本：v\(localVersion.description) - v\(latestVersion.description)\n可立即下載並安裝更新。",
+            "Version: v\(localVersion.description) → v\(latestVersion.description)\nDownload and install the update now."
+        )
         alert.alertStyle = .informational
         alert.icon = NSApp.applicationIconImage
         alert.accessoryView = makeReleaseNotesView(releaseBody)
-        alert.addButton(withTitle: "立即更新")
-        alert.addButton(withTitle: "下次再说")
+        alert.addButton(withTitle: AppText.text("立即更新", "立即更新", "Update Now"))
+        alert.addButton(withTitle: AppText.text("下次再说", "下次再說", "Later"))
         return alert.runModalWithSystemStyle()
     }
 
     private func makeReleaseNotesView(_ releaseBody: String?) -> NSView {
         let trimmedBody = (releaseBody ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let notesText = trimmedBody.isEmpty ? "此版本暂无推版描述。" : trimmedBody
+        let notesText = trimmedBody.isEmpty ? AppText.text("此版本暂无推版描述。", "此版本尚無發佈說明。", "No release notes are available for this version.") : trimmedBody
 
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 430, height: 190))
-        let titleField = NSTextField(labelWithString: "GitHub 推版描述")
+        let titleField = NSTextField(labelWithString: AppText.text("GitHub 推版描述", "GitHub 發佈說明", "GitHub Release Notes"))
         titleField.font = .boldSystemFont(ofSize: 13)
         titleField.frame = NSRect(x: 0, y: 166, width: 430, height: 18)
 
@@ -150,7 +160,7 @@ final class UpdateManager {
             case .success(let zipURL):
                 self.install(from: zipURL, info: info)
             case .failure(let error):
-                self.showAlert(title: "下载失败", message: error.localizedDescription, buttonTitles: ["好"])
+                self.showAlert(title: AppText.text("下载失败", "下載失敗", "Download Failed"), message: error.localizedDescription, buttonTitles: [AppText.text("好", "好", "OK")])
             }
         }
     }
@@ -171,13 +181,13 @@ final class UpdateManager {
                 throw NSError(
                     domain: "Update",
                     code: 1,
-                    userInfo: [NSLocalizedDescriptionKey: "未在压缩包中找到 EK StreamDL.app"]
+                    userInfo: [NSLocalizedDescriptionKey: AppText.text("未在压缩包中找到 EK StreamDL.app", "在壓縮檔中找不到 EK StreamDL.app", "EK StreamDL.app was not found in the archive")]
                 )
             }
             try validate(appURL: appURL, expectedVersion: info.latestVersion)
             try Installer.installAndRelaunch(newAppURL: appURL)
         } catch {
-            showAlert(title: "安装失败", message: error.localizedDescription, buttonTitles: ["好"])
+            showAlert(title: AppText.text("安装失败", "安裝失敗", "Installation Failed"), message: error.localizedDescription, buttonTitles: [AppText.text("好", "好", "OK")])
         }
     }
 
@@ -210,14 +220,14 @@ final class UpdateManager {
             throw NSError(
                 domain: "Update",
                 code: 2,
-                userInfo: [NSLocalizedDescriptionKey: "更新包中的应用身份与 EK StreamDL不匹配"]
+                userInfo: [NSLocalizedDescriptionKey: AppText.text("更新包中的应用身份与 EK StreamDL 不匹配", "更新套件中的應用程式身分與 EK StreamDL 不符", "The app identity in the update does not match EK StreamDL")]
             )
         }
         guard bundle.shortVersion == expectedVersion else {
             throw NSError(
                 domain: "Update",
                 code: 3,
-                userInfo: [NSLocalizedDescriptionKey: "更新包版本与 GitHub Release 标签不一致"]
+                userInfo: [NSLocalizedDescriptionKey: AppText.text("更新包版本与 GitHub Release 标签不一致", "更新套件版本與 GitHub Release 標籤不一致", "The update version does not match the GitHub Release tag")]
             )
         }
     }

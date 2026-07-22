@@ -233,8 +233,8 @@ final class VideoBridge: NSObject, WKScriptMessageHandler {
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
-        panel.prompt = "选择"
-        panel.message = "选择视频下载保存目录"
+        panel.prompt = AppText.text("选择", "選擇", "Choose")
+        panel.message = AppText.text("选择视频下载保存目录", "選擇影片下載儲存位置", "Choose where downloaded videos are saved")
         panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
         return panel.runModal() == .OK ? panel.url?.path : nil
     }
@@ -244,9 +244,9 @@ final class VideoBridge: NSObject, WKScriptMessageHandler {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.plainText]
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = "EK StreamDL诊断报告.txt"
-        panel.prompt = "导出"
-        panel.message = "导出运行环境与最近操作诊断信息"
+        panel.nameFieldStringValue = AppText.text("EK StreamDL诊断报告.txt", "EK StreamDL診斷報告.txt", "EK StreamDL Diagnostics.txt")
+        panel.prompt = AppText.text("导出", "匯出", "Export")
+        panel.message = AppText.text("导出运行环境与最近操作诊断信息", "匯出執行環境與最近操作的診斷資訊", "Export runtime environment and recent operation diagnostics")
         panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
         guard panel.runModal() == .OK, let url = panel.url else {
             return nil

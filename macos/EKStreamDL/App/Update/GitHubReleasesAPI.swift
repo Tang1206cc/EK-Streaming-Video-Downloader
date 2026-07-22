@@ -36,13 +36,13 @@ enum GitHubReleaseError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .noPublishedRelease:
-            return "GitHub 仓库尚未发布可用版本"
+            return AppText.text("GitHub 仓库尚未发布可用版本", "GitHub 儲存庫尚未發佈可用版本", "No published release is available in the GitHub repository")
         case .invalidResponse:
-            return "GitHub API 返回异常"
+            return AppText.text("GitHub API 返回异常", "GitHub API 回應異常", "GitHub API returned an unexpected response")
         case .invalidRelease:
-            return "无法解析 GitHub Releases 信息"
+            return AppText.text("无法解析 GitHub Releases 信息", "無法解析 GitHub Releases 資訊", "Unable to parse GitHub Releases information")
         case .missingZipAsset:
-            return "未找到符合 EK StreamDL 命名规范的 macOS Universal 更新包"
+            return AppText.text("未找到符合 EK StreamDL 命名规范的 macOS Universal 更新包", "找不到符合 EK StreamDL 命名規範的 macOS Universal 更新套件", "No macOS Universal update matching the EK StreamDL naming convention was found")
         }
     }
 }

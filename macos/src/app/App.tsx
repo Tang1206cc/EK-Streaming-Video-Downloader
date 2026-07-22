@@ -27,6 +27,7 @@ import {
   selectDownloadDirectory,
 } from "../shared/videoService";
 import { restoreDownloadTaskAfterRestart } from "../shared/downloadQueue";
+import { I18nProvider, useI18n } from "../shared/i18n";
 
 const EXAMPLE_TEXT = "【【MrBeast官方】30天不吃饭挑战，坚持不住我就剃光头！-哔哩哔哩】 https://b23.tv/sKNRYNe";
 const SUPPORTED_PLATFORM_NAMES = ["哔哩哔哩", "抖音", "快手", "小红书", "今日头条", "微信视频号"];
@@ -100,7 +101,11 @@ function savePersistedDownloadState(state: PersistedDownloadState) {
 }
 
 export function App() {
-  return <VideoDownloader />;
+  return (
+    <I18nProvider>
+      <VideoDownloader />
+    </I18nProvider>
+  );
 }
 
 function SettingsGearIcon() {
@@ -113,6 +118,7 @@ function SettingsGearIcon() {
 }
 
 function VideoDownloader() {
+  const { language, t, td } = useI18n();
   const persistedState = useMemo(loadPersistedDownloadState, []);
   const [inputText, setInputText] = useState("");
   const [metadata, setMetadata] = useState<VideoMetadata | null>(null);
@@ -150,7 +156,7 @@ function VideoDownloader() {
   const canDownload = useMemo(() => {
     return metadata !== null && !isParsing;
   }, [isParsing, metadata]);
-  const downloadDirectoryLabel = downloadDirectoryPath ?? "系统下载文件夹";
+  const downloadDirectoryLabel = downloadDirectoryPath ?? t("系统下载文件夹");
   const selectedDownloadMode =
     DOWNLOAD_MODE_OPTIONS.find((option) => option.id === downloadMode) ?? DOWNLOAD_MODE_OPTIONS[0];
   const collectionItems = metadata?.collection?.items ?? [];
@@ -747,11 +753,13 @@ function VideoDownloader() {
                 <img className="app-wordmark" src="./brand/ek-streamdl-wordmark.png" alt="EK StreamDL" />
               </h1>
               <a className="author-home-link" href="https://github.com/Tang1206cc">
-                作者：唐梓耀（Emir Kaya） 主页：https://github.com/Tang1206cc
+                {language === "en"
+                  ? "Author: 唐梓耀 (Emir Kaya) · Homepage: https://github.com/Tang1206cc"
+                  : `${t("作者")}：唐梓耀（Emir Kaya） ${t("主页")}：https://github.com/Tang1206cc`}
               </a>
             </div>
             <p>
-              实现主流网站视频快速按需下载，本工具仅作学习与非盈利用途，请勿恶意利用其侵犯他人/组织的合法权益，用户行为与本工具作者无关。
+              {t("实现主流网站视频快速按需下载，本工具仅作学习与非盈利用途，请勿恶意利用其侵犯他人/组织的合法权益，用户行为与本工具作者无关。")}
             </p>
           </div>
           <div className="app-home-actions">
@@ -759,8 +767,8 @@ function VideoDownloader() {
               type="button"
               className="settings-button"
               disabled={isOpeningSettings}
-              aria-label="打开偏好设置"
-              title="偏好设置"
+              aria-label={t("打开偏好设置")}
+              title={t("偏好设置")}
               onClick={handleOpenPreferences}
             >
               <SettingsGearIcon />
@@ -768,17 +776,17 @@ function VideoDownloader() {
             <div className="app-info-pills">
               <span className="platform-pill">macOS</span>
               <button type="button" className="about-pill" onClick={() => setIsAboutModalOpen(true)}>
-                关于
+                {t("关于")}
               </button>
             </div>
           </div>
         </header>
 
-        <section className="input-panel" aria-label="链接解析">
+        <section className="input-panel" aria-label={t("链接解析")}>
           <textarea
             value={inputText}
             onChange={(event) => setInputText(event.target.value)}
-            placeholder="粘贴视频页分享链接"
+            placeholder={t("粘贴视频页分享链接")}
             rows={2}
           />
           <div className="input-actions">
@@ -788,48 +796,48 @@ function VideoDownloader() {
                 className="environment-config-button"
                 onClick={() => setIsEnvironmentModalOpen(true)}
               >
-                ⚠️配置所需环境
+                {t("⚠️配置所需环境")}
               </button>
-              <span>初次使用务必点击，否则可能无法正常使用</span>
+              <span>{t("初次使用务必点击，否则可能无法正常使用")}</span>
             </div>
             <button type="button" className="support-link" onClick={() => setIsSupportModalOpen(true)}>
-              查看目前支持平台
+              {t("查看目前支持平台")}
             </button>
             <button type="button" className="download-list-open" onClick={() => setIsDownloadListOpen(true)}>
               <DownloadListIcon />
-              <span>下载列表</span>
+              <span>{t("下载列表")}</span>
               {downloadTasks.length > 0 ? <span className="download-list-badge">{downloadTasks.length}</span> : null}
             </button>
             <button type="button" className="ghost-button" onClick={() => setInputText(EXAMPLE_TEXT)}>
-              填入示例
+              {t("填入示例")}
             </button>
             <button type="button" className="primary-button" disabled={isParsing} onClick={handleParse}>
-              {isParsing ? "解析中" : "解析"}
+              {t(isParsing ? "解析中" : "解析")}
             </button>
           </div>
           {parseStageMessage ? (
             <p className="parse-stage-text" aria-live="polite">
-              {parseStageMessage}
+              {td(parseStageMessage)}
             </p>
           ) : null}
-          {error ? <p className="error-text">{error}</p> : null}
+          {error ? <p className="error-text">{td(error)}</p> : null}
         </section>
 
         {metadata ? (
-          <section className="result-panel" aria-label="解析结果">
+          <section className="result-panel" aria-label={t("解析结果")}>
             <div className="cover-block">
-              <img className="cover" src={metadata.coverUrl} alt={`${metadata.platformName}封面预览`} />
+              <img className="cover" src={metadata.coverUrl} alt={`${td(metadata.platformName)}${t("封面预览")}`} />
               <button
                 type="button"
                 className="ghost-button cover-download-button"
                 disabled={isCoverDownloading || !metadata.coverUrl}
                 onClick={handleDownloadCover}
               >
-                {isCoverDownloading ? "下载中" : "下载封面"}
+                {t(isCoverDownloading ? "下载中" : "下载封面")}
               </button>
               {coverDownloadMessage ? (
                 <p className="cover-download-message" title={coverDownloadMessage}>
-                  {coverDownloadMessage}
+                  {td(coverDownloadMessage)}
                 </p>
               ) : null}
               <label className="download-sound-toggle">
@@ -842,39 +850,39 @@ function VideoDownloader() {
                     setIsDownloadSoundEnabled(isEnabled);
                   }}
                 />
-                <span>下载后提示🔔</span>
+                <span>{t("下载后提示🔔")}</span>
               </label>
             </div>
             <div className="video-detail">
               <div className="detail-heading">
                 <div className="detail-platform-row">
-                  <span className="detail-platform-badge">{metadata.platformName}</span>
+                  <span className="detail-platform-badge">{td(metadata.platformName)}</span>
                   {metadata.platform === "douyin" ? (
                     <small className="douyin-collection-disclaimer">
-                      注意：抖音平台合集视频的列表暂时无法完整呈现，请自行分集解析。
+                      {t("注意：抖音平台合集视频的列表暂时无法完整呈现，请自行分集解析。")}
                     </small>
                   ) : null}
                   {metadata.platform === "wechatChannels" ? (
                     <small className="wechat-login-disclaimer">
                       <span className={`wechat-auth-indicator ${weChatAuthorizationState}`} aria-live="polite">
-                        授权状态：
+                        {t("授权状态：")}
                         {weChatAuthorizationState === "checking"
-                          ? "检查中"
+                          ? t("检查中")
                           : weChatAuthorizationState === "authorized"
-                            ? "已授权"
-                            : "未授权"}
+                            ? t("已授权")
+                            : t("未授权")}
                       </span>
-                      <span>下载过程中腾讯可能会要求登录微信，此登录与本工具无关。</span>
+                      <span>{t("下载过程中腾讯可能会要求登录微信，此登录与本工具无关。")}</span>
                       <button
                         type="button"
                         className="wechat-auth-clear-link"
                         disabled={isClearingWeChatAuthorization}
                         onClick={handleClearWeChatAuthorization}
                       >
-                        {isClearingWeChatAuthorization ? "正在清理" : "清理当前授权"}
+                        {t(isClearingWeChatAuthorization ? "正在清理" : "清理当前授权")}
                       </button>
                       {weChatAuthorizationMessage ? (
-                        <span className="wechat-auth-status">{weChatAuthorizationMessage}</span>
+                        <span className="wechat-auth-status">{td(weChatAuthorizationMessage)}</span>
                       ) : null}
                     </small>
                   ) : null}
@@ -884,28 +892,28 @@ function VideoDownloader() {
 
               <dl className="meta-grid">
                 <div>
-                  <dt>作者</dt>
+                  <dt>{t("作者")}</dt>
                   <dd>{metadata.author}</dd>
                 </div>
                 <div>
-                  <dt>发布日期</dt>
-                  <dd>{metadata.publishedAt}</dd>
+                  <dt>{t("发布日期")}</dt>
+                  <dd>{td(metadata.publishedAt)}</dd>
                 </div>
                 <div>
-                  <dt>视频时长</dt>
-                  <dd>{metadata.duration}</dd>
+                  <dt>{t("视频时长")}</dt>
+                  <dd>{td(metadata.duration)}</dd>
                 </div>
                 <div>
-                  <dt>下载信息</dt>
+                  <dt>{t("下载信息")}</dt>
                   <dd>
                     {metadata.platform === "wechatChannels" && !metadata.estimatedSizeMb
-                      ? "登录后获取"
-                      : formatEstimatedSize(metadata.estimatedSizeMb)}
+                      ? t("登录后获取")
+                      : formatEstimatedSize(metadata.estimatedSizeMb, language)}
                   </dd>
                 </div>
               </dl>
 
-              <p className="note">{metadata.note}</p>
+              <p className="note">{td(metadata.note)}</p>
 
               {hasCollection ? (
                 <CollectionSelector
@@ -931,14 +939,14 @@ function VideoDownloader() {
                       disabled={!canDownload}
                       aria-haspopup="menu"
                       aria-expanded={isDownloadModeMenuOpen}
-                      title={`当前下载模式：${selectedDownloadMode.label}`}
+                      title={`${t("当前下载模式：")}${t(selectedDownloadMode.label)}`}
                       onClick={() => setIsDownloadModeMenuOpen((isOpen) => !isOpen)}
                     >
-                      <span>{selectedDownloadMode.shortLabel}</span>
+                      <span>{t(selectedDownloadMode.shortLabel)}</span>
                       <span className="mode-arrow" aria-hidden="true" />
                     </button>
                     {isDownloadModeMenuOpen ? (
-                      <div className="mode-menu" role="menu" aria-label="下载模式">
+                      <div className="mode-menu" role="menu" aria-label={t("下载模式")}>
                         {DOWNLOAD_MODE_OPTIONS.map((option) => (
                           <button
                             key={option.id}
@@ -951,7 +959,7 @@ function VideoDownloader() {
                               setIsDownloadModeMenuOpen(false);
                             }}
                           >
-                            {option.label}
+                            {t(option.label)}
                           </button>
                         ))}
                       </div>
@@ -963,20 +971,20 @@ function VideoDownloader() {
                     disabled={!canDownload}
                     onClick={handleDownload}
                   >
-                    下载
+                    {t("下载")}
                   </button>
                 </div>
-                <div className="download-directory" aria-label="下载目录选择">
-                  <span className="directory-label">下载目录</span>
+                <div className="download-directory" aria-label={t("下载目录选择")}>
+                  <span className="directory-label">{t("下载目录")}</span>
                   <span className="directory-path" title={downloadDirectoryLabel}>
                     {downloadDirectoryLabel}
                   </span>
                   <button type="button" className="ghost-button compact-button" onClick={handleSelectDownloadDirectory}>
-                    选择
+                    {t("选择")}
                   </button>
                   {downloadDirectoryPath ? (
                     <button type="button" className="directory-reset" onClick={() => setDownloadDirectoryPath(null)}>
-                      恢复默认
+                      {t("恢复默认")}
                     </button>
                   ) : null}
                 </div>
@@ -985,8 +993,8 @@ function VideoDownloader() {
             </div>
           </section>
         ) : (
-          <section className="empty-panel" aria-label="空状态">
-            <span>等待解析链接</span>
+          <section className="empty-panel" aria-label={t("空状态")}>
+            <span>{t("等待解析链接")}</span>
           </section>
         )}
       </section>
@@ -1006,10 +1014,10 @@ function VideoDownloader() {
             aria-labelledby="support-modal-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <h2 id="support-modal-title">目前支持平台</h2>
-            <p>{SUPPORTED_PLATFORM_NAMES.join("、")}</p>
+            <h2 id="support-modal-title">{t("目前支持平台")}</h2>
+            <p>{SUPPORTED_PLATFORM_NAMES.map((name) => t(name)).join(language === "en" ? ", " : "、")}</p>
             <button type="button" className="primary-button" onClick={() => setIsSupportModalOpen(false)}>
-              知道了
+              {t("知道了")}
             </button>
           </section>
         </div>
@@ -1036,6 +1044,7 @@ function VideoDownloader() {
 }
 
 function AboutModal({ onClose }: { onClose: () => void }) {
+  const { language, t } = useI18n();
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section
@@ -1047,29 +1056,29 @@ function AboutModal({ onClose }: { onClose: () => void }) {
       >
         <div className="about-modal-head">
           <span aria-hidden="true" />
-          <h2 id="about-modal-title">关于</h2>
-          <button type="button" className="about-modal-close" aria-label="关闭关于窗口" onClick={onClose}>
+          <h2 id="about-modal-title">{t("关于")}</h2>
+          <button type="button" className="about-modal-close" aria-label={t("关闭关于窗口")} onClick={onClose}>
             ×
           </button>
         </div>
 
         <div className="about-contact-list">
           <a className="about-contact-card about-contact-link" href="https://b23.tv/HzxdJwK">
-            <span>bilibili弹幕网：EmirKaya（UID:3546715558775600）</span>
-            <small>点击可跳转 ↗</small>
+            <span>{language === "en" ? "Bilibili: EmirKaya (UID: 3546715558775600)" : `${t("哔哩哔哩")}：EmirKaya（UID:3546715558775600）`}</span>
+            <small>{t("点击可跳转 ↗")}</small>
           </a>
           <a className="about-contact-card about-contact-link" href="https://xhslink.com/m/5x8KUzU0lwn">
-            <span>小红书：EmirKaya（Tangzyhard）</span>
-            <small>点击可跳转 ↗</small>
+            <span>{language === "en" ? "Xiaohongshu: EmirKaya (Tangzyhard)" : `${t("小红书")}：EmirKaya（Tangzyhard）`}</span>
+            <small>{t("点击可跳转 ↗")}</small>
           </a>
-          <div className="about-contact-card about-copyable">QQ：2410710390（邮箱同号）</div>
-          <div className="about-contact-card about-copyable">QQ群：922281790</div>
+          <div className="about-contact-card about-copyable">{language === "en" ? "QQ: 2410710390 (same number for email)" : `QQ：2410710390（${t("邮箱同号")}）`}</div>
+          <div className="about-contact-card about-copyable">{language === "en" ? "QQ Group: 922281790" : `QQ群：922281790`}</div>
         </div>
 
         <img
           className="about-visual"
           src="./about/ek-author-card.png"
-          alt="EK StreamDL 作者与版权信息"
+          alt={`EK StreamDL${t("作者与版权信息")}`}
         />
       </section>
     </div>
@@ -1127,6 +1136,7 @@ const ENVIRONMENT_REQUIREMENTS: RuntimeEnvironmentComponent[] = [
 ];
 
 function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
+  const { language, t, td } = useI18n();
   const [stage, setStage] = useState<EnvironmentSetupStage>("intro");
   const [report, setReport] = useState<RuntimeEnvironmentReport | null>(null);
   const [progressEvent, setProgressEvent] = useState<RuntimeEnvironmentProgressEvent>({
@@ -1208,13 +1218,13 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
       >
         <div className="environment-modal-head">
           <div>
-            <span>EK流媒体视频下载器 · 运行环境</span>
-            <h2 id="environment-modal-title">配置所需环境</h2>
+            <span>EK StreamDL · {t("运行环境")}</span>
+            <h2 id="environment-modal-title">{t("配置所需环境")}</h2>
           </div>
           <button
             type="button"
             className="environment-modal-close"
-            aria-label="关闭环境配置"
+            aria-label={t("关闭环境配置")}
             disabled={isBusy}
             onClick={closeIfIdle}
           >
@@ -1223,7 +1233,7 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <p className="environment-intro">
-          本功能会检查视频解析、下载及媒体处理所需组件。应用会优先复用设备上已有工具；缺失时仅安装应用专用副本，无需安装 Xcode、Node.js 或 Homebrew，也不会改动已有工具。
+          {t("本功能会检查视频解析、下载及媒体处理所需组件。应用会优先复用设备上已有工具；缺失时仅安装应用专用副本，无需安装 Xcode、Node.js 或 Homebrew，也不会改动已有工具。")}
         </p>
 
         <div className="environment-component-list">
@@ -1246,14 +1256,14 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
             return (
               <article className="environment-component" key={component.id}>
                 <div className="environment-component-heading">
-                  <strong>{component.name}</strong>
-                  <span className={`environment-component-status ${statusClass}`}>{statusText}</span>
+                  <strong>{component.id === "downloads" && language === "en" ? "Download Location" : td(component.name)}</strong>
+                  <span className={`environment-component-status ${statusClass}`}>{t(statusText)}</span>
                 </div>
-                <p>{component.purpose}</p>
+                <p>{td(component.purpose)}</p>
                 <small title={component.path ?? component.detail}>
                   {component.version ? `${component.version} · ` : ""}
-                  {component.detail}
-                  {component.latestVersion ? ` · 最新 ${component.latestVersion}` : ""}
+                  {td(component.detail)}
+                  {component.latestVersion ? ` · ${t("最新")} ${component.latestVersion}` : ""}
                 </small>
               </article>
             );
@@ -1263,88 +1273,109 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
         {isBusy ? (
           <div className="environment-progress" aria-live="polite">
             <div className="environment-progress-label">
-              <span>{progressEvent.message}</span>
+              <span>{td(progressEvent.message)}</span>
               <strong>{progressEvent.progress}%</strong>
             </div>
             <div className="environment-progress-track">
               <span style={{ width: `${progressEvent.progress}%` }} />
             </div>
-            <small>{stage === "installing" ? "请保持应用开启，安装完成后会自动复查" : "正在读取本设备环境信息"}</small>
+            <small>{t(stage === "installing" ? "请保持应用开启，安装完成后会自动复查" : "正在读取本设备环境信息")}</small>
           </div>
         ) : null}
 
-        {stage === "ready" ? <p className="environment-ready">✅当前设备环境齐全，无需配置</p> : null}
+        {stage === "ready" ? <p className="environment-ready">{t("✅当前设备环境齐全，无需配置")}</p> : null}
         {stage === "result" && (missingComponents.length > 0 || recommendedComponents.length > 0) ? (
           <p className="environment-needed">
             {actionableComponents.length > 0
-              ? `${installableMissingComponents.length > 0 ? "需要配置" : "建议更新"}：${actionableComponents.map((component) => component.name).join("、")}。组件将保存到当前用户的应用支持目录，不需要管理员权限。`
-              : `当前设备不满足运行要求：${unsupportedMissingComponents.map((component) => component.name).join("、")}。请按检查结果处理后重试。`}
+              ? language === "en"
+                ? `${installableMissingComponents.length > 0 ? "Setup required" : "Update recommended"}: ${actionableComponents.map((component) => td(component.name)).join(", ")}. Components are stored in the current user’s Application Support folder and do not require administrator access.`
+                : `${t(installableMissingComponents.length > 0 ? "需要配置" : "建议更新")}：${actionableComponents.map((component) => td(component.name)).join("、")}。${t("组件将保存到当前用户的应用支持目录，不需要管理员权限。")}`
+              : language === "en"
+                ? `This device does not meet the runtime requirements: ${unsupportedMissingComponents.map((component) => td(component.name)).join(", ")}. Follow the check results and try again.`
+                : `${t("当前设备不满足运行要求：")}${unsupportedMissingComponents.map((component) => td(component.name)).join("、")}。${t("请按检查结果处理后重试。")}`}
           </p>
         ) : null}
-        {stage === "error" ? <p className="environment-operation-error">{operationError}</p> : null}
+        {stage === "error" ? <p className="environment-operation-error">{td(operationError)}</p> : null}
 
         <div className="environment-modal-actions">
           {stage === "intro" ? (
             <button type="button" className="primary-button environment-check-button" onClick={handleCheckEnvironment}>
-              检查本设备，以准备按需配置
+              {t("检查本设备，以准备按需配置")}
             </button>
           ) : null}
           {stage === "result" && actionableComponents.length > 0 ? (
             <button type="button" className="primary-button environment-install-button" onClick={handleInstallEnvironment}>
-              一键安装/更新
+              {t("一键安装/更新")}
             </button>
           ) : null}
           {stage === "result" && actionableComponents.length === 0 ? (
             <button type="button" className="primary-button" onClick={onClose}>
-              知道了
+              {t("知道了")}
             </button>
           ) : null}
           {stage === "ready" ? (
             <button type="button" className="primary-button" onClick={onClose}>
-              完成
+              {t("完成")}
             </button>
           ) : null}
           {stage === "error" ? (
             <>
               <button type="button" className="ghost-button" onClick={handleCheckEnvironment}>
-                重新检查
+                {t("重新检查")}
               </button>
               {report && missingComponents.some((component) => component.installable) ? (
                 <button type="button" className="primary-button" onClick={handleInstallEnvironment}>
-                  重新尝试安装
+                  {t("重新尝试安装")}
                 </button>
               ) : null}
             </>
           ) : null}
           {report && !isBusy ? (
             <button type="button" className="ghost-button environment-export-button" onClick={handleExportDiagnostics}>
-              导出诊断报告
+              {t("导出诊断报告")}
             </button>
           ) : null}
         </div>
 
         {diagnosticMessage ? (
           <p className="environment-diagnostic-message" title={diagnosticMessage}>
-            {diagnosticMessage}
+            {td(diagnosticMessage)}
           </p>
         ) : null}
 
         <p className="environment-source-note">
-          自动配置需要联网；下载支持断点续传与最多 3 次重试，安装文件通过 HTTPS 获取并进行 SHA-256 完整性校验。FFmpeg 会按当前 Mac 架构使用主、备发行源。
+          {t("自动配置需要联网；下载支持断点续传与最多 3 次重试，安装文件通过 HTTPS 获取并进行 SHA-256 完整性校验。FFmpeg 会按当前 Mac 架构使用主、备发行源。")}
         </p>
         <details className="third-party-notices">
-          <summary>第三方组件来源与许可</summary>
+          <summary>{t("第三方组件来源与许可")}</summary>
           <div>
-            <p>
-              <strong>yt-dlp</strong>：用于解析公开视频页面，来自
-              <a href="https://github.com/yt-dlp/yt-dlp"> yt-dlp 官方 GitHub</a>，遵循 Unlicense 许可。
-            </p>
-            <p>
-              <strong>FFmpeg</strong>：用于媒体检查、合并与转换，主源为
-              <a href="https://github.com/myndrai/myndr-ffmpeg-lgpl"> myndr-ffmpeg-lgpl</a>，备用源为
-              <a href="https://github.com/eugeneware/ffmpeg-static"> ffmpeg-static</a> 与
-              <a href="https://www.osxexperts.net/"> osxexperts.net</a>；实际适用 LGPL/GPL 条款以所安装构建为准。
-            </p>
+            {language === "en" ? (
+              <>
+                <p>
+                  <strong>yt-dlp</strong> parses public video pages and is sourced from the
+                  <a href="https://github.com/yt-dlp/yt-dlp"> official yt-dlp GitHub repository</a> under the Unlicense.
+                </p>
+                <p>
+                  <strong>FFmpeg</strong> inspects, merges, and converts media. Its primary source is
+                  <a href="https://github.com/myndrai/myndr-ffmpeg-lgpl"> myndr-ffmpeg-lgpl</a>; fallback sources are
+                  <a href="https://github.com/eugeneware/ffmpeg-static"> ffmpeg-static</a> and
+                  <a href="https://www.osxexperts.net/"> osxexperts.net</a>. Applicable LGPL/GPL terms depend on the installed build.
+                </p>
+              </>
+            ) : (
+              <>
+                <p>
+                  <strong>yt-dlp</strong>：{t("用于解析公开视频页面，来自")}
+                  <a href="https://github.com/yt-dlp/yt-dlp"> yt-dlp {t("官方 GitHub")}</a>，{t("遵循 Unlicense 许可。")}
+                </p>
+                <p>
+                  <strong>FFmpeg</strong>：{t("用于媒体检查、合并与转换，主源为")}
+                  <a href="https://github.com/myndrai/myndr-ffmpeg-lgpl"> myndr-ffmpeg-lgpl</a>，{t("备用源为")}
+                  <a href="https://github.com/eugeneware/ffmpeg-static"> ffmpeg-static</a>{t("与")}
+                  <a href="https://www.osxexperts.net/"> osxexperts.net</a>；{t("实际适用 LGPL/GPL 条款以所安装构建为准。")}
+                </p>
+              </>
+            )}
           </div>
         </details>
       </section>
@@ -1352,13 +1383,13 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function formatEstimatedSize(value?: number) {
+function formatEstimatedSize(value: number | undefined, language: "zh-Hans" | "zh-Hant" | "en") {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    return "预估大小未知";
+    return language === "zh-Hans" ? "预估大小未知" : language === "zh-Hant" ? "預估大小未知" : "Estimated size unavailable";
   }
 
   const roundedValue = value >= 100 ? Math.round(value) : Math.round(value * 10) / 10;
-  return `约 ${roundedValue} MB`;
+  return language === "en" ? `Approx. ${roundedValue} MB` : `${language === "zh-Hant" ? "約" : "约"} ${roundedValue} MB`;
 }
 
 function getInitialCollectionSelection(metadata: VideoMetadata) {
@@ -1387,13 +1418,14 @@ function CollectionSelector({
   onDraftChange: (selection: string[]) => void;
   onConfirm: () => void;
 }) {
+  const { language, t } = useI18n();
   const selectedCount = confirmedSelection.length;
   const selectedEpisodesSummary = confirmedSelection
     .map((itemId) => items.find((item) => item.id === itemId)?.index)
     .filter((index): index is number => typeof index === "number")
     .sort((left, right) => left - right)
-    .map((index) => `第${index}集`)
-    .join("、");
+    .map((index) => language === "en" ? `Episode ${index}` : `第${index}集`)
+    .join(language === "en" ? ", " : "、");
 
   function toggleItem(itemId: string) {
     onDraftChange(
@@ -1416,9 +1448,11 @@ function CollectionSelector({
           onOpenChange(!isOpen);
         }}
       >
-        <span className="collection-trigger-label">合集选择：已选 {selectedCount}/{items.length} 集</span>
+        <span className="collection-trigger-label">
+          {language === "en" ? `Collection: ${selectedCount}/${items.length} selected` : `${t("合集选择：已选")} ${selectedCount}/${items.length} ${t("集")}`}
+        </span>
         <span className="collection-trigger-summary" title={selectedEpisodesSummary}>
-          {selectedEpisodesSummary || "未选择"}
+          {selectedEpisodesSummary || t("未选择")}
         </span>
       </button>
 
@@ -1430,13 +1464,13 @@ function CollectionSelector({
               className="collection-panel-link"
               onClick={() => onDraftChange(items.map((item) => item.id))}
             >
-              勾选全部
+              {t("勾选全部")}
             </button>
             <button type="button" className="collection-panel-link" onClick={() => onDraftChange([])}>
-              取消勾选
+              {t("取消勾选")}
             </button>
           </div>
-          <div className="collection-list" role="group" aria-label="合集视频选择">
+          <div className="collection-list" role="group" aria-label={t("合集视频选择")}>
             {items.map((item) => (
               <label key={item.id} className="collection-item">
                 <input
@@ -1444,14 +1478,14 @@ function CollectionSelector({
                   checked={draftSelection.includes(item.id)}
                   onChange={() => toggleItem(item.id)}
                 />
-                <span className="collection-item-index">第 {item.index} 集</span>
+                <span className="collection-item-index">{language === "en" ? `Episode ${item.index}` : `第 ${item.index} 集`}</span>
                 <span className="collection-item-title">{item.title}</span>
               </label>
             ))}
           </div>
           <div className="collection-panel-actions">
             <button type="button" className="primary-button collection-confirm" disabled={draftSelection.length === 0} onClick={onConfirm}>
-              确定
+              {t("确定")}
             </button>
           </div>
         </div>
@@ -1487,6 +1521,7 @@ function DownloadListModal({
   onStartTask: (taskId: string) => void;
   onDeleteTask: (taskId: string) => void;
 }) {
+  const { t } = useI18n();
   const visibleTasks = tasks.filter((task) =>
     activeTab === "completed" ? task.status === "completed" : task.status !== "completed",
   );
@@ -1508,7 +1543,7 @@ function DownloadListModal({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="download-list-head">
-          <div className="download-list-tabs" role="tablist" aria-label="下载任务分类">
+          <div className="download-list-tabs" role="tablist" aria-label={t("下载任务分类")}>
             <button
               type="button"
               id="download-list-title"
@@ -1517,7 +1552,7 @@ function DownloadListModal({
               aria-selected={activeTab === "active"}
               onClick={() => onTabChange("active")}
             >
-              下载中({activeCount})
+              {t("下载中")} ({activeCount})
             </button>
             <button
               type="button"
@@ -1526,10 +1561,10 @@ function DownloadListModal({
               aria-selected={activeTab === "completed"}
               onClick={() => onTabChange("completed")}
             >
-              已完成({completedCount})
+              {t("已完成")} ({completedCount})
             </button>
           </div>
-          <button type="button" className="download-list-close" aria-label="关闭下载列表" onClick={onClose}>
+          <button type="button" className="download-list-close" aria-label={t("关闭下载列表")} onClick={onClose}>
             ×
           </button>
         </div>
@@ -1537,15 +1572,15 @@ function DownloadListModal({
         <div className="download-list-controls">
           <button type="button" className="list-control-button" disabled={!hasPausableTasks} onClick={onPauseAll}>
             <span aria-hidden="true">Ⅱ</span>
-            全部暂停
+            {t("全部暂停")}
           </button>
           <button type="button" className="list-control-button" disabled={!hasStartableTasks} onClick={onStartAll}>
             <span aria-hidden="true">▷</span>
-            全部开始
+            {t("全部开始")}
           </button>
           <button type="button" className="list-control-button" disabled={!hasDeletableVisibleTasks} onClick={onDeleteVisible}>
             <span aria-hidden="true">⌫</span>
-            全部删除
+            {t("全部删除")}
           </button>
         </div>
 
@@ -1562,7 +1597,7 @@ function DownloadListModal({
             ))
           ) : (
             <div className="download-list-empty">
-              {activeTab === "completed" ? "暂无已完成任务" : "暂无下载任务"}
+              {t(activeTab === "completed" ? "暂无已完成任务" : "暂无下载任务")}
             </div>
           )}
         </div>
@@ -1582,6 +1617,7 @@ function DownloadListItem({
   onStartTask: (taskId: string) => void;
   onDeleteTask: (taskId: string) => void;
 }) {
+  const { language, t, td } = useI18n();
   const isRunning = isRunningDownloadStatus(task.status);
   const canPause = (task.status === "queued" || isRunning) && !task.controlPending;
   const canStart = (task.status === "paused" || task.status === "failed") && !task.controlPending;
@@ -1598,14 +1634,14 @@ function DownloadListItem({
           {task.metadata.title}
         </div>
         <div className="download-list-item-meta">
-          <span>{task.metadata.platformName}</span>
-          <span>{modeLabel}</span>
-          {selectedCollectionItem ? <span>第 {selectedCollectionItem.index} 集</span> : null}
-          {collectionCount > 1 ? <span>合集 {collectionCount} 集</span> : null}
-          <span>{getDownloadStatusLabel(task.status)}</span>
+          <span>{td(task.metadata.platformName)}</span>
+          <span>{t(modeLabel)}</span>
+          {selectedCollectionItem ? <span>{language === "en" ? `Episode ${selectedCollectionItem.index}` : `第 ${selectedCollectionItem.index} 集`}</span> : null}
+          {collectionCount > 1 ? <span>{language === "en" ? `Collection · ${collectionCount} episodes` : `${t("合集")} ${collectionCount} ${t("集")}`}</span> : null}
+          <span>{t(getDownloadStatusLabel(task.status))}</span>
         </div>
         <div className="download-list-item-message" title={task.message}>
-          {task.message}
+          {td(task.message)}
         </div>
         <div className="download-list-progress">
           <div className="download-list-progress-track">
@@ -1617,12 +1653,12 @@ function DownloadListItem({
       <div className="download-list-item-actions">
         {canPause ? (
           <button type="button" className="small-action-button" onClick={() => onPauseTask(task.id)}>
-            暂停
+            {t("暂停")}
           </button>
         ) : null}
         {canStart ? (
           <button type="button" className="small-action-button" onClick={() => onStartTask(task.id)}>
-            开始
+            {t("开始")}
           </button>
         ) : null}
         <button
@@ -1631,7 +1667,7 @@ function DownloadListItem({
           disabled={!canDelete}
           onClick={() => onDeleteTask(task.id)}
         >
-          删除
+          {t("删除")}
         </button>
       </div>
     </article>
@@ -1639,10 +1675,11 @@ function DownloadListItem({
 }
 
 function Progress({ task }: { task: ManagedDownloadTask }) {
+  const { t, td } = useI18n();
   return (
-    <div className="progress-wrap" aria-label="下载进度">
+    <div className="progress-wrap" aria-label={t("下载进度")}>
       <div className="progress-meta">
-        <span>{task.message}</span>
+        <span>{td(task.message)}</span>
         <span>{task.progress}%</span>
       </div>
       <div className="progress-track">

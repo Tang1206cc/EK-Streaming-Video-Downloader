@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppSettings.registerDefaults()
         AppSettings.applyApplicationAppearance()
+        AppSettings.applyApplicationLanguage()
 
         escMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.keyCode == 53 && UserDefaults.standard.bool(forKey: AppSettings.escToQuitKey) {
@@ -23,9 +24,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             forName: UserDefaults.didChangeNotification,
             object: UserDefaults.standard,
             queue: .main
-        ) { _ in
+        ) { [weak self] _ in
             Task { @MainActor in
                 AppSettings.applyApplicationAppearance()
+                self?.settingsWindow?.title = AppText.text("偏好设置", "偏好設定", "Preferences")
             }
         }
 
@@ -57,17 +59,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 350),
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 400),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
         window.center()
-        window.title = "偏好设置"
+        window.title = AppText.text("偏好设置", "偏好設定", "Preferences")
         window.isReleasedWhenClosed = false
         window.tabbingMode = .disallowed
-        window.contentMinSize = NSSize(width: 480, height: 350)
-        window.contentMaxSize = NSSize(width: 480, height: 350)
+        window.contentMinSize = NSSize(width: 520, height: 400)
+        window.contentMaxSize = NSSize(width: 520, height: 400)
         window.contentView = NSHostingView(rootView: SettingsView())
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

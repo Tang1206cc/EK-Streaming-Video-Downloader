@@ -720,6 +720,23 @@ textarea:focus {
   margin-top: auto;
 }
 
+:root[lang="en"] .download-row {
+  grid-template-columns: minmax(0, 338px) 218px;
+}
+
+:root[lang="en"] .download-action {
+  grid-template-columns: 98px 112px;
+}
+
+:root[lang="en"] .mode-button {
+  width: 98px;
+  min-width: 98px;
+}
+
+:root[lang="en"] .mode-menu {
+  width: 190px;
+}
+
 .download-action {
   grid-column: 2;
   grid-row: 1;

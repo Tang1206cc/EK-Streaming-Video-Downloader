@@ -2,8 +2,8 @@ import AppKit
 
 final class DownloadWindowController: NSWindowController, URLSessionDownloadDelegate {
     private let progressIndicator = NSProgressIndicator()
-    private let percentField = NSTextField(labelWithString: "下载进度：0%")
-    private let etaField = NSTextField(labelWithString: "剩余时间：—")
+    private let percentField = NSTextField(labelWithString: AppText.text("下载进度：0%", "下載進度：0%", "Download progress: 0%"))
+    private let etaField = NSTextField(labelWithString: AppText.text("剩余时间：—", "剩餘時間：—", "Time remaining: —"))
 
     private var session: URLSession?
     private var startTime: Date?
@@ -31,7 +31,7 @@ final class DownloadWindowController: NSWindowController, URLSessionDownloadDele
             defer: false
         )
         window.center()
-        window.title = "正在下载更新"
+        window.title = AppText.text("正在下载更新", "正在下載更新", "Downloading Update")
         window.isReleasedWhenClosed = false
         window.standardWindowButton(.closeButton)?.isEnabled = false
         window.standardWindowButton(.zoomButton)?.isEnabled = false
@@ -77,8 +77,8 @@ final class DownloadWindowController: NSWindowController, URLSessionDownloadDele
     func startDownload(from url: URL, completion: @escaping (Result<URL, Error>) -> Void) {
         self.completion = completion
         didComplete = false
-        percentField.stringValue = "下载进度：0%"
-        etaField.stringValue = "剩余时间：—"
+        percentField.stringValue = AppText.text("下载进度：0%", "下載進度：0%", "Download progress: 0%")
+        etaField.stringValue = AppText.text("剩余时间：—", "剩餘時間：—", "Time remaining: —")
         progressIndicator.doubleValue = 0
         startTime = Date()
 
@@ -107,14 +107,14 @@ final class DownloadWindowController: NSWindowController, URLSessionDownloadDele
 
         let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
         progressIndicator.doubleValue = progress
-        percentField.stringValue = String(format: "下载进度：%.0f%%", progress * 100)
+        percentField.stringValue = String(format: AppText.text("下载进度：%.0f%%", "下載進度：%.0f%%", "Download progress: %.0f%%"), progress * 100)
 
         if let startTime, totalBytesWritten > 0 {
             let elapsed = Date().timeIntervalSince(startTime)
             let speed = Double(totalBytesWritten) / max(elapsed, 0.1)
             let remainingBytes = Double(totalBytesExpectedToWrite - totalBytesWritten)
             let remainingTime = remainingBytes / max(speed, 1)
-            etaField.stringValue = "剩余时间：" + format(seconds: Int(remainingTime))
+            etaField.stringValue = AppText.text("剩余时间：", "剩餘時間：", "Time remaining: ") + format(seconds: Int(remainingTime))
         }
     }
 
@@ -158,6 +158,10 @@ final class DownloadWindowController: NSWindowController, URLSessionDownloadDele
     private func format(seconds: Int) -> String {
         let minutes = seconds / 60
         let seconds = seconds % 60
-        return minutes > 0 ? "\(minutes) 分 \(seconds) 秒" : "\(seconds) 秒"
+        switch AppSettings.language {
+        case .simplifiedChinese: return minutes > 0 ? "\(minutes) 分 \(seconds) 秒" : "\(seconds) 秒"
+        case .traditionalChinese: return minutes > 0 ? "\(minutes) 分 \(seconds) 秒" : "\(seconds) 秒"
+        case .english: return minutes > 0 ? "\(minutes)m \(seconds)s" : "\(seconds)s"
+        }
     }
 }
