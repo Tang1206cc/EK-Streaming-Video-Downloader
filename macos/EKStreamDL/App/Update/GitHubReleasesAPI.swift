@@ -16,14 +16,19 @@ struct GitHubRelease: Decodable {
 enum ReleaseAssetSelector {
     static func preferredMacOSAssetNames(for version: Version) -> [String] {
         [
+            "macOS-arm64-EK StreamDL-\(version.description).zip",
             "macOS-universal-EK StreamDL-\(version.description).zip",
             "macOS-universal-EK.StreamDL-\(version.description).zip",
         ]
     }
 
     static func macOSAsset(in assets: [GitHubAsset], version: Version) -> GitHubAsset? {
-        let expectedNames = preferredMacOSAssetNames(for: version)
-        return assets.first(where: { expectedNames.contains($0.name) })
+        for expectedName in preferredMacOSAssetNames(for: version) {
+            if let asset = assets.first(where: { $0.name == expectedName }) {
+                return asset
+            }
+        }
+        return nil
     }
 }
 
@@ -42,7 +47,7 @@ enum GitHubReleaseError: LocalizedError {
         case .invalidRelease:
             return AppText.text("无法解析 GitHub Releases 信息", "無法解析 GitHub Releases 資訊", "Unable to parse GitHub Releases information")
         case .missingZipAsset:
-            return AppText.text("未找到符合 EK StreamDL 命名规范的 macOS Universal 更新包", "找不到符合 EK StreamDL 命名規範的 macOS Universal 更新套件", "No macOS Universal update matching the EK StreamDL naming convention was found")
+            return AppText.text("未找到符合 EK StreamDL 命名规范的 macOS 更新包", "找不到符合 EK StreamDL 命名規範的 macOS 更新套件", "No macOS update matching the EK StreamDL naming convention was found")
         }
     }
 }
