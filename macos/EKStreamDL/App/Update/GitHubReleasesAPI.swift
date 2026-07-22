@@ -16,6 +16,7 @@ struct GitHubRelease: Decodable {
 enum ReleaseAssetSelector {
     static func preferredMacOSAssetNames(for version: Version) -> [String] {
         [
+            "macOS-arm64-EK.StreamDL-\(version.description).zip",
             "macOS-arm64-EK StreamDL-\(version.description).zip",
             "macOS-universal-EK StreamDL-\(version.description).zip",
             "macOS-universal-EK.StreamDL-\(version.description).zip",
