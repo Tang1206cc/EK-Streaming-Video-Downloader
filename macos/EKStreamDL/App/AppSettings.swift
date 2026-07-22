@@ -155,7 +155,6 @@ enum AppSettings {
             escToQuitKey,
             quitWhenLastWindowClosedKey,
             autoCheckForUpdatesKey,
-            languageKey,
         ].forEach { defaults.removeObject(forKey: $0) }
     }
 }

@@ -102,11 +102,9 @@ struct SettingsView: View {
                         escToQuit = AppSettings.escToQuitDefault
                         quitWhenLastWindowClosed = AppSettings.quitWhenLastWindowClosedDefault
                         autoCheckForUpdates = AppSettings.autoCheckForUpdatesDefault
-                        language = AppSettings.languageDefault
                         launchAtLoginError = ""
                         resetError = ""
                         AppSettings.applyApplicationAppearance(.system)
-                        AppSettings.applyApplicationLanguage(.simplifiedChinese)
                     } catch {
                         resetError = AppText.text("恢复默认设置失败：", "恢復預設值失敗：", "Unable to restore defaults: ", language: selectedLanguage) + error.localizedDescription
                     }
