@@ -8,7 +8,7 @@ import extract from "extract-zip";
 import { appendDiagnostic } from "./diagnostics.js";
 import { runProcess } from "./processRunner.js";
 import type { AppLanguage } from "./settings.js";
-import { isNewerVersion, parseReleaseVersion, windowsReleaseAssetName } from "./releaseContract.js";
+import { isNewerVersion, parseReleaseVersion, windowsReleaseAssetNames } from "./releaseContract.js";
 
 const RELEASE_API = "https://api.github.com/repos/Tang1206cc/EK-Streaming-Video-Downloader/releases/latest";
 const APP_ID = "com.tang1206cc.ekstreamdl";
@@ -173,9 +173,12 @@ export async function checkForUpdates(interactive: boolean, language: AppLanguag
       return { updateAvailable: false };
     }
     const remoteText = remote.join(".");
-    const expectedName = windowsReleaseAssetName(remoteText);
-    const asset = release.assets.find((item) => item.name === expectedName);
-    if (!asset) throw new Error(`未找到符合命名规范的 Windows 更新包：${expectedName}`);
+    const expectedNames = windowsReleaseAssetNames(remoteText);
+    const asset = expectedNames
+      .map((name) => release.assets.find((item) => item.name === name))
+      .find((item) => item !== undefined);
+    if (!asset) throw new Error(`未找到符合命名规范的 Windows 更新包：${expectedNames[0]}`);
+    const expectedName = asset.name;
     const choice = await dialog.showMessageBox({
       type: "info",
       title: t.available,

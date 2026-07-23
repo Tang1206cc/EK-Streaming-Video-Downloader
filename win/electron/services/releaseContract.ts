@@ -11,8 +11,11 @@ export function isNewerVersion(remote: readonly number[], local: readonly number
   return false;
 }
 
-export function windowsReleaseAssetName(version: string) {
-  return `windows-x64-EK StreamDL-${version}.zip`;
+export function windowsReleaseAssetNames(version: string) {
+  return [
+    `windows-x64-EK.StreamDL-${version}.zip`,
+    `windows-x64-EK StreamDL-${version}.zip`,
+  ];
 }
 
 export function checksumForFile(checksumList: string, fileName: string) {

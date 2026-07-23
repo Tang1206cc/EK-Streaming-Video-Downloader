@@ -1,7 +1,7 @@
 {
   "name": "ek-streamdl-windows",
-  "version": "0.9.0",
-  "buildVersion": "11",
+  "version": "1.0.0",
+  "buildVersion": "12",
   "private": true,
   "author": "唐梓耀 (Emir Kaya)",
   "type": "module",
@@ -40,7 +40,7 @@
   "build": {
     "appId": "com.tang1206cc.ekstreamdl",
     "productName": "EK StreamDL",
-    "artifactName": "windows-x64-EK StreamDL-${version}.${ext}",
+    "artifactName": "windows-x64-EK.StreamDL-${version}.${ext}",
     "directories": {
       "output": "build-output"
     },

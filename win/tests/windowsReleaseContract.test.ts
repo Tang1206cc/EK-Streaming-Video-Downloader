@@ -3,7 +3,7 @@ import {
   checksumForFile,
   isNewerVersion,
   parseReleaseVersion,
-  windowsReleaseAssetName,
+  windowsReleaseAssetNames,
 } from "../electron/services/releaseContract";
 
 describe("Windows Release contract", () => {
@@ -20,7 +20,10 @@ describe("Windows Release contract", () => {
   });
 
   it("keeps the exact updater asset filename", () => {
-    expect(windowsReleaseAssetName("0.9.0")).toBe("windows-x64-EK StreamDL-0.9.0.zip");
+    expect(windowsReleaseAssetNames("1.0.0")).toEqual([
+      "windows-x64-EK.StreamDL-1.0.0.zip",
+      "windows-x64-EK StreamDL-1.0.0.zip",
+    ]);
   });
 
   it("reads GNU-style SHA-256 lists without weakening the filename match", () => {

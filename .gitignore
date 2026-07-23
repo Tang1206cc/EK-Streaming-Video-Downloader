@@ -39,11 +39,15 @@ dist/
 !macos/dist/**
 dist-electron/
 build/
+build-output/
 coverage/
 .coverage
 .cache/
 tmp/
 temp/
+
+# Release asset larger than GitHub's Git blob limit; uploaded directly to the Release.
+release-artifacts/windows-x64-EK.StreamDL-1.0.0.zip
 
 # Xcode / Swift
 DerivedData/
