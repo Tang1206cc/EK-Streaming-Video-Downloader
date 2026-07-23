@@ -3,7 +3,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { finished } from "node:stream/promises";
+import { finished, pipeline } from "node:stream/promises";
+import { createGunzip } from "node:zlib";
 import extract from "extract-zip";
 import type {
   RuntimeEnvironmentComponent,
@@ -25,9 +26,21 @@ import { checksumForFile } from "./releaseContract.js";
 const YTDLP_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
 const YTDLP_SUMS_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/SHA2-256SUMS";
 const YTDLP_RELEASE_API = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest";
+const FFMPEG_STATIC_RELEASE_API = "https://api.github.com/repos/eugeneware/ffmpeg-static/releases/latest";
+const FFMPEG_STATIC_ASSET_NAME = "ffmpeg-win32-x64.gz";
+const FFMPEG_STATIC_PINNED_URL = "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-win32-x64.gz";
+const FFMPEG_STATIC_PINNED_SHA256 = "8883a3dffbd0a16cf4ef95206ea05283f78908dbfb118f73c83f4951dcc06d77";
 const FFMPEG_URL = "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip";
 const FFMPEG_SUMS_URL = "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/checksums.sha256";
 const FFMPEG_ARCHIVE_NAME = "ffmpeg-master-latest-win64-gpl.zip";
+const DOWNLOAD_STALL_TIMEOUT_MS = 30_000;
+
+type FfmpegDownloadAsset = {
+  url: string;
+  sha256: string;
+  fileName: string;
+  format: "gzip" | "zip";
+};
 
 const platformProbeURLs = [
   ["哔哩哔哩", "https://www.bilibili.com/"],
@@ -235,14 +248,28 @@ async function downloadWithResume(
   destination: string,
   expectedHash: string,
   onProgress: (value: number) => void,
+  maxAttempts = 3,
 ) {
   fs.mkdirSync(path.dirname(destination), { recursive: true });
+  if (fs.existsSync(destination) && await sha256(destination) === expectedHash) {
+    onProgress(100);
+    return;
+  }
   const partial = `${destination}.part`;
   let lastError: unknown;
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const controller = new AbortController();
+    let stallTimer: NodeJS.Timeout | undefined;
+    let stream: fs.WriteStream | undefined;
+    const resetStallTimer = () => {
+      if (stallTimer) clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => controller.abort(), DOWNLOAD_STALL_TIMEOUT_MS);
+    };
     try {
       const offset = fs.existsSync(partial) ? fs.statSync(partial).size : 0;
+      resetStallTimer();
       const response = await net.fetch(url, {
+        signal: controller.signal,
         redirect: "follow",
         headers: {
           "User-Agent": userAgent(),
@@ -252,29 +279,31 @@ async function downloadWithResume(
       if (!response.ok && response.status !== 206) throw new Error(`HTTP ${response.status}`);
       const append = offset > 0 && response.status === 206;
       const total = Number(response.headers.get("content-length") ?? 0) + (append ? offset : 0);
-      const stream = fs.createWriteStream(partial, { flags: append ? "a" : "w" });
-      const completion = finished(stream);
+      stream = fs.createWriteStream(partial, { flags: append ? "a" : "w" });
+      const activeStream = stream;
       let received = append ? offset : 0;
       if (!response.body) throw new Error("下载响应为空");
       for await (const chunk of response.body) {
+        resetStallTimer();
         const buffer = Buffer.from(chunk);
-        if (!stream.write(buffer)) {
+        if (!activeStream.write(buffer)) {
           await new Promise<void>((resolve, reject) => {
             const onDrain = () => { cleanup(); resolve(); };
             const onError = (error: Error) => { cleanup(); reject(error); };
             const cleanup = () => {
-              stream.removeListener("drain", onDrain);
-              stream.removeListener("error", onError);
+              activeStream.removeListener("drain", onDrain);
+              activeStream.removeListener("error", onError);
             };
-            stream.once("drain", onDrain);
-            stream.once("error", onError);
+            activeStream.once("drain", onDrain);
+            activeStream.once("error", onError);
           });
         }
         received += buffer.length;
         if (total > 0) onProgress(Math.min(99, Math.round((received / total) * 100)));
       }
-      stream.end();
-      await completion;
+      activeStream.end();
+      await finished(activeStream);
+      stream = undefined;
       const actualHash = await sha256(partial);
       if (actualHash !== expectedHash) throw new Error("SHA-256 完整性校验失败");
       const previous = `${destination}.previous`;
@@ -284,14 +313,105 @@ async function downloadWithResume(
       if (fs.existsSync(previous)) fs.unlinkSync(previous);
       return;
     } catch (error) {
-      lastError = error;
+      stream?.destroy();
+      stream = undefined;
+      lastError = controller.signal.aborted
+        ? new Error(`下载连续 ${DOWNLOAD_STALL_TIMEOUT_MS / 1_000} 秒未收到数据`)
+        : error;
       if (error instanceof Error && error.message.includes("SHA-256") && fs.existsSync(partial)) {
         fs.unlinkSync(partial);
       }
-      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 1_000));
+      if (attempt < maxAttempts) await new Promise((resolve) => setTimeout(resolve, attempt * 1_000));
+    } finally {
+      if (stallTimer) clearTimeout(stallTimer);
     }
   }
   throw lastError instanceof Error ? lastError : new Error("下载失败");
+}
+
+function pinnedStaticFfmpegAsset(): FfmpegDownloadAsset {
+  return {
+    url: FFMPEG_STATIC_PINNED_URL,
+    sha256: FFMPEG_STATIC_PINNED_SHA256,
+    fileName: FFMPEG_STATIC_ASSET_NAME,
+    format: "gzip",
+  };
+}
+
+async function latestStaticFfmpegAsset(): Promise<FfmpegDownloadAsset> {
+  try {
+    const release = JSON.parse(await fetchText(FFMPEG_STATIC_RELEASE_API, 15_000)) as {
+      assets?: Array<{ name?: string; browser_download_url?: string; digest?: string }>;
+    };
+    const asset = release.assets?.find((candidate) => candidate.name === FFMPEG_STATIC_ASSET_NAME);
+    const digest = asset?.digest?.replace(/^sha256:/i, "").toLowerCase();
+    if (!asset?.browser_download_url || !digest || !/^[a-f0-9]{64}$/.test(digest)) return pinnedStaticFfmpegAsset();
+    return {
+      url: asset.browser_download_url,
+      sha256: digest,
+      fileName: FFMPEG_STATIC_ASSET_NAME,
+      format: "gzip",
+    };
+  } catch {
+    return pinnedStaticFfmpegAsset();
+  }
+}
+
+async function verifyExecutableWithRetry(executable: string, arguments_: string[]) {
+  const retryDelays = [0, 1_000, 2_000, 4_000, 8_000, 15_000, 30_000];
+  let lastError: unknown;
+  for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
+    if (retryDelays[attempt] > 0) {
+      await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
+    }
+    try {
+      const verification = await runProcess(executable, arguments_, { timeoutMs: 60_000 });
+      if (verification.exitCode !== 0) throw new Error("FFmpeg 安装文件无法运行");
+      return;
+    } catch (error) {
+      lastError = error;
+      const code = (error as NodeJS.ErrnoException).code;
+      const mayBeTemporarilyLocked = code === "EACCES" || code === "EPERM" || code === "EBUSY";
+      if (!mayBeTemporarilyLocked || attempt === retryDelays.length - 1) throw error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("FFmpeg 安装文件无法运行");
+}
+
+async function installFfmpegAsset(asset: FfmpegDownloadAsset, onProgress: (value: number) => void, maxAttempts: number) {
+  const cacheDirectory = path.join(managedToolsDirectory(), "DownloadCache");
+  const archive = path.join(cacheDirectory, `${asset.sha256}-${asset.fileName}`);
+  await downloadWithResume(asset.url, archive, asset.sha256, onProgress, maxAttempts);
+
+  const stagingId = crypto.randomUUID();
+  const stagedPayload = path.join(managedToolsDirectory(), `ffmpeg-${stagingId}.payload`);
+  const stagedExecutable = path.join(managedToolsDirectory(), `ffmpeg-${stagingId}.exe`);
+  try {
+    if (asset.format === "gzip") {
+      await pipeline(fs.createReadStream(archive), createGunzip(), fs.createWriteStream(stagedPayload));
+    } else {
+      const staging = path.join(app.getPath("temp"), `ek-streamdl-ffmpeg-${crypto.randomUUID()}`);
+      fs.mkdirSync(staging, { recursive: true });
+      await extract(archive, { dir: staging });
+      const executable = findFile(staging, "ffmpeg.exe");
+      if (!executable) throw new Error("FFmpeg 安装包中未找到 ffmpeg.exe");
+      fs.copyFileSync(executable, stagedPayload);
+    }
+
+    fs.copyFileSync(stagedPayload, stagedExecutable);
+    fs.unlinkSync(stagedPayload);
+    await verifyExecutableWithRetry(stagedExecutable, ["-version"]);
+    const destination = managedFfmpegPath();
+    const previous = `${destination}.previous`;
+    if (fs.existsSync(previous)) fs.unlinkSync(previous);
+    if (fs.existsSync(destination)) fs.renameSync(destination, previous);
+    fs.renameSync(stagedExecutable, destination);
+    if (fs.existsSync(previous)) fs.unlinkSync(previous);
+  } catch (error) {
+    if (fs.existsSync(stagedPayload)) fs.unlinkSync(stagedPayload);
+    if (fs.existsSync(stagedExecutable)) fs.unlinkSync(stagedExecutable);
+    throw error;
+  }
 }
 
 function findFile(directory: string, fileName: string): string | null {
@@ -332,19 +452,40 @@ export async function installRuntimeEnvironment(
       });
     }
     if (component.id === "ffmpeg") {
-      onProgress({ progress: base, message: "正在读取 FFmpeg 校验清单", componentId: component.id });
-      const expected = checksumForFile(await fetchText(FFMPEG_SUMS_URL), FFMPEG_ARCHIVE_NAME);
-      const archive = path.join(app.getPath("temp"), `ek-streamdl-${crypto.randomUUID()}-${FFMPEG_ARCHIVE_NAME}`);
-      await downloadWithResume(FFMPEG_URL, archive, expected, (value) => {
-        onProgress({ progress: base + Math.round((value / 100) * (span * 0.75)), message: "正在下载 FFmpeg", componentId: component.id });
-      });
-      const staging = path.join(app.getPath("temp"), `ek-streamdl-ffmpeg-${crypto.randomUUID()}`);
-      fs.mkdirSync(staging, { recursive: true });
-      await extract(archive, { dir: staging });
-      const executable = findFile(staging, "ffmpeg.exe");
-      if (!executable) throw new Error("FFmpeg 安装包中未找到 ffmpeg.exe");
-      fs.copyFileSync(executable, managedFfmpegPath());
-      fs.unlinkSync(archive);
+      onProgress({ progress: base, message: "正在读取 FFmpeg 下载信息", componentId: component.id });
+      const preferred = await latestStaticFfmpegAsset();
+      let lastError: unknown;
+      let installed = false;
+      const installSource = async (asset: FfmpegDownloadAsset, sourceIndex: number) => {
+        await installFfmpegAsset(asset, (value) => {
+          onProgress({
+            progress: base + Math.round((value / 100) * (span * 0.75)),
+            message: sourceIndex === 0 ? "正在下载 FFmpeg" : "正在从备用源下载 FFmpeg",
+            componentId: component.id,
+          });
+        }, 1);
+      };
+      try {
+        await installSource(preferred, 0);
+        installed = true;
+      } catch (error) {
+        lastError = error;
+        appendDiagnostic("环境安装", `FFmpeg 下载源 1 失败：${error instanceof Error ? error.message : "未知错误"}`);
+      }
+      if (!installed) {
+        try {
+          const fallbackExpected = checksumForFile(await fetchText(FFMPEG_SUMS_URL), FFMPEG_ARCHIVE_NAME);
+          await installSource(
+            { url: FFMPEG_URL, sha256: fallbackExpected, fileName: FFMPEG_ARCHIVE_NAME, format: "zip" },
+            1,
+          );
+          installed = true;
+        } catch (error) {
+          lastError = error;
+          appendDiagnostic("环境安装", `FFmpeg 下载源 2 失败：${error instanceof Error ? error.message : "未知错误"}`);
+        }
+      }
+      if (!installed) throw lastError instanceof Error ? lastError : new Error("无法取得 FFmpeg 安装文件");
       onProgress({ progress: base + span, message: "FFmpeg 安装完成", componentId: component.id });
     }
   }

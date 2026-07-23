@@ -754,8 +754,8 @@ function VideoDownloader() {
               </h1>
               <a className="author-home-link" href="https://github.com/Tang1206cc">
                 {language === "en"
-                  ? "Author: 唐梓耀 (Emir Kaya) · Homepage: https://github.com/Tang1206cc"
-                  : `${t("作者")}：唐梓耀（Emir Kaya） ${t("主页")}：https://github.com/Tang1206cc`}
+                  ? "Author: 唐梓耀 (EmirKaya) · Homepage: https://github.com/Tang1206cc"
+                  : `${t("作者")}：唐梓耀（EmirKaya） ${t("主页")}：https://github.com/Tang1206cc`}
               </a>
             </div>
             <p>

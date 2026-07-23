@@ -754,8 +754,8 @@ function VideoDownloader() {
               </h1>
               <a className="author-home-link" href="https://github.com/Tang1206cc">
                 {language === "en"
-                  ? "Author: 唐梓耀 (Emir Kaya) · Homepage: https://github.com/Tang1206cc"
-                  : `${t("作者")}：唐梓耀（Emir Kaya） ${t("主页")}：https://github.com/Tang1206cc`}
+                  ? "Author: 唐梓耀 (EmirKaya) · Homepage: https://github.com/Tang1206cc"
+                  : `${t("作者")}：唐梓耀（EmirKaya） ${t("主页")}：https://github.com/Tang1206cc`}
               </a>
             </div>
             <p>
@@ -1344,7 +1344,7 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
         ) : null}
 
         <p className="environment-source-note">
-          {t("自动配置需要联网；下载支持断点续传与最多 3 次重试，安装文件通过 HTTPS 获取并进行 SHA-256 完整性校验。FFmpeg 使用 Windows x64 官方自动构建。")}
+          {t("自动配置需要联网；下载支持断点续传与最多 3 次重试，安装文件通过 HTTPS 获取并进行 SHA-256 完整性校验。FFmpeg 会按 Windows x64 架构使用主、备发行源。")}
         </p>
         <details className="third-party-notices">
           <summary>{t("第三方组件来源与许可")}</summary>
@@ -1356,7 +1356,8 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
                   <a href="https://github.com/yt-dlp/yt-dlp"> official yt-dlp GitHub repository</a> under the Unlicense.
                 </p>
                 <p>
-                  <strong>FFmpeg</strong> inspects, merges, and converts media. The Windows x64 build is sourced from
+                  <strong>FFmpeg</strong> inspects, merges, and converts media. The primary Windows x64 source is
+                  <a href="https://github.com/eugeneware/ffmpeg-static"> ffmpeg-static</a>; the fallback source is
                   <a href="https://github.com/BtbN/FFmpeg-Builds"> BtbN FFmpeg Builds</a>. The installed GPL build is governed by its bundled third-party licenses.
                 </p>
               </>
@@ -1367,7 +1368,9 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
                   <a href="https://github.com/yt-dlp/yt-dlp"> yt-dlp {t("官方 GitHub")}</a>，{t("遵循 Unlicense 许可。")}
                 </p>
                 <p>
-                  <strong>FFmpeg</strong>：{t("用于媒体检查、合并与转换，Windows x64 构建来自")}
+                  <strong>FFmpeg</strong>：{t("用于媒体检查、合并与转换，Windows x64 主源为")}
+                  <a href="https://github.com/eugeneware/ffmpeg-static"> ffmpeg-static</a>
+                  {t("备用源为")}
                   <a href="https://github.com/BtbN/FFmpeg-Builds"> BtbN FFmpeg Builds</a>；{t("实际适用的 GPL 与第三方许可条款以安装包内文件为准。")}
                 </p>
               </>

@@ -511,6 +511,45 @@ actor RuntimeEnvironmentService {
         return String(firstLine.prefix(160))
     }
 
+    private func runVersionWithTransientAccessRetry(
+        executable: String,
+        arguments: [String],
+        timeout: TimeInterval
+    ) async throws -> String {
+        let retryDelays: [UInt64] = [0, 750_000_000, 1_500_000_000, 3_000_000_000]
+        var lastError: Error?
+        for (index, delay) in retryDelays.enumerated() {
+            if delay > 0 {
+                try await Task.sleep(nanoseconds: delay)
+            }
+            do {
+                return try runVersion(
+                    executable: executable,
+                    arguments: arguments,
+                    timeout: timeout
+                )
+            } catch {
+                lastError = error
+                guard isTransientExecutableAccessError(error), index < retryDelays.count - 1 else {
+                    throw error
+                }
+            }
+        }
+        throw lastError ?? UserFacingError("组件安装文件无法运行")
+    }
+
+    private func isTransientExecutableAccessError(_ error: Error) -> Bool {
+        let transientCodes = [Int(EACCES), Int(EBUSY), Int(ETXTBSY)]
+        let nsError = error as NSError
+        if nsError.domain == NSPOSIXErrorDomain, transientCodes.contains(nsError.code) {
+            return true
+        }
+        if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
+            return underlying.domain == NSPOSIXErrorDomain && transientCodes.contains(underlying.code)
+        }
+        return false
+    }
+
     private func latestYTDLPAsset() async throws -> RuntimeDownloadAsset {
         var request = URLRequest(url: ytDLPChecksumsURL)
         request.timeoutInterval = 25
@@ -529,7 +568,7 @@ actor RuntimeEnvironmentService {
         return RuntimeDownloadAsset(
             url: ytDLPDownloadURL,
             sha256: digest,
-            archiveEntryName: nil,
+            payload: .raw,
             checksumTarget: .payload
         )
     }
@@ -557,7 +596,7 @@ actor RuntimeEnvironmentService {
         let primary = RuntimeDownloadAsset(
             url: url,
             sha256: digest,
-            archiveEntryName: "ffmpeg",
+            payload: .zip(entryName: "ffmpeg"),
             checksumTarget: .payload
         )
         return alternativeAssets + [primary]
@@ -598,7 +637,7 @@ actor RuntimeEnvironmentService {
         return RuntimeDownloadAsset(
             url: archive.browser_download_url,
             sha256: digest,
-            archiveEntryName: "ffmpeg",
+            payload: .zip(entryName: "ffmpeg"),
             checksumTarget: .archive
         )
     }
@@ -622,7 +661,7 @@ actor RuntimeEnvironmentService {
               let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode),
               let release = try? JSONDecoder().decode(Release.self, from: data),
-              let asset = release.assets.first(where: { $0.name == assetName }),
+              let asset = release.assets.first(where: { $0.name == "\(assetName).gz" }),
               let digestValue = asset.digest?.replacingOccurrences(of: "sha256:", with: ""),
               let digest = normalizedSHA256(digestValue) else {
             return nil
@@ -630,8 +669,8 @@ actor RuntimeEnvironmentService {
         return RuntimeDownloadAsset(
             url: asset.browser_download_url,
             sha256: digest,
-            archiveEntryName: nil,
-            checksumTarget: .payload
+            payload: .gzip,
+            checksumTarget: .archive
         )
     }
 
@@ -665,6 +704,7 @@ actor RuntimeEnvironmentService {
                     componentName: componentName,
                     baseProgress: baseProgress,
                     span: span,
+                    maxAttempts: assets.count > 1 ? 1 : 3,
                     progress: progress
                 )
                 return
@@ -685,6 +725,7 @@ actor RuntimeEnvironmentService {
         componentName: String,
         baseProgress: Double,
         span: Double,
+        maxAttempts: Int,
         progress: @escaping (RuntimeEnvironmentProgressEvent) -> Void
     ) async throws {
         progress(
@@ -696,9 +737,11 @@ actor RuntimeEnvironmentService {
         )
 
         var request = URLRequest(url: asset.url)
-        request.timeoutInterval = 180
+        request.timeoutInterval = 45
         request.setValue("EKStreamDL/0.1", forHTTPHeaderField: "User-Agent")
-        let downloader = RuntimeToolDownloader { ratio in
+        let resumeDataURL = try RuntimeToolPaths.managedToolsDirectory()
+            .appendingPathComponent(".download-\(asset.sha256).resume", isDirectory: false)
+        let downloader = RuntimeToolDownloader(resumeDataURL: resumeDataURL, maxAttempts: maxAttempts) { ratio in
             let current = baseProgress + span * 0.78 * ratio
             progress(
                 RuntimeEnvironmentProgressEvent(
@@ -732,7 +775,10 @@ actor RuntimeEnvironmentService {
         }
 
         let payloadURL: URL
-        if let archiveEntryName = asset.archiveEntryName {
+        switch asset.payload {
+        case .raw:
+            payloadURL = temporaryURL
+        case let .zip(entryName):
             progress(
                 RuntimeEnvironmentProgressEvent(
                     progress: Int((baseProgress + span * 0.80).rounded()),
@@ -740,9 +786,16 @@ actor RuntimeEnvironmentService {
                     componentId: componentId
                 )
             )
-            payloadURL = try extractZipEntry(named: archiveEntryName, from: temporaryURL)
-        } else {
-            payloadURL = temporaryURL
+            payloadURL = try extractZipEntry(named: entryName, from: temporaryURL)
+        case .gzip:
+            progress(
+                RuntimeEnvironmentProgressEvent(
+                    progress: Int((baseProgress + span * 0.80).rounded()),
+                    message: "正在解压 \(componentName) 安装文件",
+                    componentId: componentId
+                )
+            )
+            payloadURL = try extractGzip(from: temporaryURL)
         }
         defer {
             if payloadURL != temporaryURL {
@@ -779,7 +832,7 @@ actor RuntimeEnvironmentService {
                 componentId: componentId
             )
         )
-        _ = try runVersion(
+        _ = try await runVersionWithTransientAccessRetry(
             executable: stagingURL.path,
             arguments: versionArguments,
             timeout: versionTimeout
@@ -857,6 +910,49 @@ actor RuntimeEnvironmentService {
         }
     }
 
+    private func extractGzip(from archiveURL: URL) throws -> URL {
+        let extractedURL = fileManager.temporaryDirectory
+            .appendingPathComponent("ek-streamdl-runtime-gzip-\(UUID().uuidString)")
+        guard fileManager.createFile(atPath: extractedURL.path, contents: nil) else {
+            throw UserFacingError("无法准备 FFmpeg 解压文件")
+        }
+
+        do {
+            let outputHandle = try FileHandle(forWritingTo: extractedURL)
+            defer { try? outputHandle.close() }
+            let errorPipe = Pipe()
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/gzip")
+            process.arguments = ["-dc", archiveURL.path]
+            process.standardOutput = outputHandle
+            process.standardError = errorPipe
+
+            let finished = DispatchSemaphore(value: 0)
+            process.terminationHandler = { _ in finished.signal() }
+            try process.run()
+            if finished.wait(timeout: .now() + 60) == .timedOut {
+                process.terminate()
+                if finished.wait(timeout: .now() + 3) == .timedOut {
+                    kill(process.processIdentifier, SIGKILL)
+                    finished.wait()
+                }
+                throw UserFacingError("FFmpeg 安装文件解压超时")
+            }
+            guard process.terminationStatus == 0 else {
+                throw UserFacingError("FFmpeg 安装文件解压失败")
+            }
+            let attributes = try fileManager.attributesOfItem(atPath: extractedURL.path)
+            let fileSize = (attributes[.size] as? NSNumber)?.int64Value ?? 0
+            guard fileSize > 0 else {
+                throw UserFacingError("FFmpeg 安装文件内容为空")
+            }
+            return extractedURL
+        } catch {
+            try? fileManager.removeItem(at: extractedURL)
+            throw error
+        }
+    }
+
     private func clearQuarantine(at fileURL: URL) {
         fileURL.path.withCString { path in
             "com.apple.quarantine".withCString { attribute in
@@ -898,8 +994,14 @@ actor RuntimeEnvironmentService {
 private struct RuntimeDownloadAsset {
     var url: URL
     var sha256: String
-    var archiveEntryName: String?
+    var payload: RuntimeDownloadPayload
     var checksumTarget: RuntimeChecksumTarget
+}
+
+private enum RuntimeDownloadPayload {
+    case raw
+    case zip(entryName: String)
+    case gzip
 }
 
 private enum RuntimeChecksumTarget {
@@ -909,26 +1011,39 @@ private enum RuntimeChecksumTarget {
 
 private final class RuntimeToolDownloader: NSObject, URLSessionDownloadDelegate {
     private let progressHandler: (Double) -> Void
+    private let resumeDataURL: URL
+    private let maxAttempts: Int
     private var continuation: CheckedContinuation<URL, Error>?
     private var session: URLSession?
     private var downloadedURL: URL?
     private var completionError: Error?
     private var resumeData: Data?
 
-    init(progressHandler: @escaping (Double) -> Void) {
+    init(
+        resumeDataURL: URL,
+        maxAttempts: Int,
+        progressHandler: @escaping (Double) -> Void
+    ) {
+        self.resumeDataURL = resumeDataURL
+        self.maxAttempts = maxAttempts
         self.progressHandler = progressHandler
     }
 
     func download(request: URLRequest) async throws -> URL {
+        if resumeData == nil,
+           let persistedResumeData = try? Data(contentsOf: resumeDataURL),
+           !persistedResumeData.isEmpty {
+            resumeData = persistedResumeData
+        }
         var lastError: Error?
-        for attempt in 1...3 {
+        for attempt in 1...maxAttempts {
             downloadedURL = nil
             completionError = nil
             do {
                 return try await downloadAttempt(request: request)
             } catch {
                 lastError = error
-                guard attempt < 3 else { break }
+                guard attempt < maxAttempts else { break }
                 try? await Task.sleep(nanoseconds: UInt64(attempt) * 1_000_000_000)
             }
         }
@@ -939,8 +1054,8 @@ private final class RuntimeToolDownloader: NSObject, URLSessionDownloadDelegate 
         try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
             let configuration = URLSessionConfiguration.ephemeral
-            configuration.timeoutIntervalForRequest = 180
-            configuration.timeoutIntervalForResource = 300
+            configuration.timeoutIntervalForRequest = 45
+            configuration.timeoutIntervalForResource = 240
             let session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
             self.session = session
             if let resumeData {
@@ -988,10 +1103,15 @@ private final class RuntimeToolDownloader: NSObject, URLSessionDownloadDelegate 
         task: URLSessionTask,
         didCompleteWithError error: Error?
     ) {
-        if let error = error as NSError?,
-           let data = error.userInfo[NSURLSessionDownloadTaskResumeData] as? Data,
-           !data.isEmpty {
-            resumeData = data
+        if let error = error as NSError? {
+            if let data = error.userInfo[NSURLSessionDownloadTaskResumeData] as? Data,
+               !data.isEmpty {
+                resumeData = data
+                try? data.write(to: resumeDataURL, options: .atomic)
+            } else {
+                resumeData = nil
+                try? FileManager.default.removeItem(at: resumeDataURL)
+            }
         }
         let result: Result<URL, Error>
         if let error {
@@ -1009,6 +1129,7 @@ private final class RuntimeToolDownloader: NSObject, URLSessionDownloadDelegate 
         self.session = nil
         if case .success = result {
             resumeData = nil
+            try? FileManager.default.removeItem(at: resumeDataURL)
         }
     }
 }

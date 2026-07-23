@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { StringDecoder } from "node:string_decoder";
 
 export type ProcessResult = {
   exitCode: number;
@@ -27,8 +28,10 @@ export function runProcess(
     let stderr = "";
     let pendingOut = "";
     let pendingErr = "";
-    const emit = (chunk: Buffer, isError: boolean) => {
-      const text = chunk.toString("utf8");
+    const stdoutDecoder = new StringDecoder("utf8");
+    const stderrDecoder = new StringDecoder("utf8");
+    const emitText = (text: string, isError: boolean) => {
+      if (!text) return;
       if (isError) stderr += text;
       else stdout += text;
       let pending = (isError ? pendingErr : pendingOut) + text;
@@ -38,8 +41,8 @@ export function runProcess(
       else pendingOut = pending;
       lines.forEach((line) => options.onLine?.(line));
     };
-    child.stdout.on("data", (chunk: Buffer) => emit(chunk, false));
-    child.stderr.on("data", (chunk: Buffer) => emit(chunk, true));
+    child.stdout.on("data", (chunk: Buffer) => emitText(stdoutDecoder.write(chunk), false));
+    child.stderr.on("data", (chunk: Buffer) => emitText(stderrDecoder.write(chunk), true));
     child.once("error", reject);
 
     const timeout = options.timeoutMs
@@ -51,6 +54,8 @@ export function runProcess(
 
     child.once("close", (code) => {
       if (timeout) clearTimeout(timeout);
+      emitText(stdoutDecoder.end(), false);
+      emitText(stderrDecoder.end(), true);
       if (pendingOut) options.onLine?.(pendingOut);
       if (pendingErr) options.onLine?.(pendingErr);
       resolve({ exitCode: code ?? -1, stdout, stderr });

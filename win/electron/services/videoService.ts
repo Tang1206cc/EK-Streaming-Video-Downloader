@@ -271,7 +271,7 @@ export async function parseVideo(inputText: string): Promise<VideoMetadata> {
 
   const executable = resolveYtDlpPath();
   if (!executable) throw new Error("未找到 yt-dlp，请先点击“配置所需环境”完成安装");
-  const baseArgs = ["--dump-single-json", "--skip-download", "--no-warnings", "--no-playlist", "--force-ipv4", ...ytDlpHeaders(platform), url];
+  const baseArgs = ["--encoding", "utf-8", "--dump-single-json", "--skip-download", "--no-warnings", "--no-playlist", "--force-ipv4", ...ytDlpHeaders(platform), url];
   const result = await runProcess(executable, baseArgs, { timeoutMs: 120_000 });
   if (result.exitCode !== 0) throw standardizeYtDlpError(result.stderr || result.stdout);
   const info = parseJson(result.stdout);
@@ -280,7 +280,7 @@ export async function parseVideo(inputText: string): Promise<VideoMetadata> {
   if (platform === "bilibili" || platform === "douyin") {
     const collectionResult = await runProcess(
       executable,
-      ["--dump-single-json", "--flat-playlist", "--skip-download", "--no-warnings", "--force-ipv4", ...ytDlpHeaders(platform), url],
+      ["--encoding", "utf-8", "--dump-single-json", "--flat-playlist", "--skip-download", "--no-warnings", "--force-ipv4", ...ytDlpHeaders(platform), url],
       { timeoutMs: 90_000 },
     ).catch(() => null);
     if (collectionResult?.exitCode === 0) collection = collectionFromInfo(parseJson(collectionResult.stdout), platform);
@@ -355,6 +355,7 @@ async function runYtDlpDownload(
   state?.trackedPrefixes.add(base);
   const outputTemplate = mode === "separate" ? `${base}.%(format_id)s.%(ext)s` : `${base}.%(ext)s`;
   const args = [
+    "--encoding", "utf-8",
     "--newline",
     "--continue",
     "--no-overwrites",
