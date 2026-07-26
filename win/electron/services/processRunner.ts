@@ -12,6 +12,8 @@ export function runProcess(
   args: string[],
   options: {
     timeoutMs?: number;
+    stallTimeoutMs?: number;
+    isPaused?: () => boolean;
     onLine?: (line: string) => void;
     onSpawn?: (child: ChildProcessWithoutNullStreams) => void;
     cwd?: string;
@@ -28,6 +30,8 @@ export function runProcess(
     let stderr = "";
     let pendingOut = "";
     let pendingErr = "";
+    let settled = false;
+    let lastActivityAt = Date.now();
     const stdoutDecoder = new StringDecoder("utf8");
     const stderrDecoder = new StringDecoder("utf8");
     const emitText = (text: string, isError: boolean) => {
@@ -41,19 +45,67 @@ export function runProcess(
       else pendingOut = pending;
       lines.forEach((line) => options.onLine?.(line));
     };
-    child.stdout.on("data", (chunk: Buffer) => emitText(stdoutDecoder.write(chunk), false));
-    child.stderr.on("data", (chunk: Buffer) => emitText(stderrDecoder.write(chunk), true));
-    child.once("error", reject);
+    child.stdout.on("data", (chunk: Buffer) => {
+      lastActivityAt = Date.now();
+      emitText(stdoutDecoder.write(chunk), false);
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      lastActivityAt = Date.now();
+      emitText(stderrDecoder.write(chunk), true);
+    });
 
+    let activeElapsedMs = 0;
+    let previousTimeoutTick = Date.now();
     const timeout = options.timeoutMs
-      ? setTimeout(() => {
-          terminateProcessTree(child);
-          reject(new Error("操作超时，请检查网络后重试"));
-        }, options.timeoutMs)
+      ? options.isPaused
+        ? setInterval(() => {
+            const now = Date.now();
+            if (!options.isPaused?.()) {
+              activeElapsedMs += now - previousTimeoutTick;
+              if (activeElapsedMs >= options.timeoutMs!) {
+                fail(new Error("操作超时，请检查网络后重试"));
+              }
+            }
+            previousTimeoutTick = now;
+          }, Math.min(1_000, Math.max(50, Math.floor(options.timeoutMs / 100))))
+        : setTimeout(() => {
+            fail(new Error("操作超时，请检查网络后重试"));
+          }, options.timeoutMs)
+      : null;
+    const stallWatchdog = options.stallTimeoutMs
+      ? setInterval(() => {
+          if (options.isPaused?.()) {
+            lastActivityAt = Date.now();
+            return;
+          }
+          if (Date.now() - lastActivityAt >= options.stallTimeoutMs!) {
+            fail(new Error("下载长时间没有收到新数据，请检查网络后重试"));
+          }
+        }, Math.min(1_000, Math.max(50, Math.floor(options.stallTimeoutMs / 4))))
       : null;
 
+    function cleanupTimers() {
+      if (timeout) {
+        if (options.isPaused) clearInterval(timeout);
+        else clearTimeout(timeout);
+      }
+      if (stallWatchdog) clearInterval(stallWatchdog);
+    }
+
+    function fail(error: Error) {
+      if (settled) return;
+      settled = true;
+      cleanupTimers();
+      terminateProcessTree(child);
+      reject(error);
+    }
+
+    child.once("error", (error) => fail(error));
+
     child.once("close", (code) => {
-      if (timeout) clearTimeout(timeout);
+      if (settled) return;
+      settled = true;
+      cleanupTimers();
       emitText(stdoutDecoder.end(), false);
       emitText(stderrDecoder.end(), true);
       if (pendingOut) options.onLine?.(pendingOut);

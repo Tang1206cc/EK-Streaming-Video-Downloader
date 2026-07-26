@@ -81,6 +81,7 @@ type YtDlpInfo = {
 
 type TaskState = {
   child?: ChildProcessWithoutNullStreams;
+  abortController: AbortController;
   cancelled: boolean;
   paused: boolean;
   trackedPrefixes: Set<string>;
@@ -513,6 +514,9 @@ async function runYtDlpDownload(
   ];
   const savedPaths: string[] = [];
   const result = await runProcess(executable, args, {
+    timeoutMs: 2 * 60 * 60_000,
+    stallTimeoutMs: 90_000,
+    isPaused: () => tasks.get(taskId)?.paused === true,
     onSpawn: (child) => {
       const current = tasks.get(taskId);
       if (current) current.child = child;
@@ -593,6 +597,8 @@ async function runFfmpegCommand(
         }
       },
       timeoutMs: 30 * 60_000,
+      stallTimeoutMs: 90_000,
+      isPaused: () => tasks.get(taskId)?.paused === true,
     },
   );
   if (tasks.get(taskId)?.cancelled) throw new Error("下载已取消");
@@ -681,15 +687,53 @@ async function fetchDirectAsset(
   outputPath: string,
   userAgent: string,
   referer: string,
+  taskId: string,
 ) {
-  const response = await net.fetch(url, {
-    redirect: "follow",
-    headers: { "User-Agent": userAgent, Referer: referer },
-  });
-  if (!response.ok) throw new Error(`下载失败：远程素材返回 HTTP ${response.status}`);
-  const data = Buffer.from(await response.arrayBuffer());
-  if (!data.length) throw new Error("下载失败：远程素材内容为空");
-  fs.writeFileSync(outputPath, data);
+  const task = tasks.get(taskId);
+  if (!task || task.cancelled) throw new Error("下载已取消");
+  const controller = new AbortController();
+  let timedOut = false;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  const abortForTask = () => controller.abort();
+  const resetIdleTimer = () => {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 60_000);
+  };
+  task.abortController.signal.addEventListener("abort", abortForTask, { once: true });
+  resetIdleTimer();
+  try {
+    const response = await net.fetch(url, {
+      redirect: "follow",
+      headers: { "User-Agent": userAgent, Referer: referer },
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`下载失败：远程素材返回 HTTP ${response.status}`);
+    if (!response.body) throw new Error("下载失败：远程素材内容为空");
+    const chunks: Buffer[] = [];
+    const reader = response.body.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (tasks.get(taskId)?.cancelled) throw new Error("下载已取消");
+      if (value?.byteLength) {
+        chunks.push(Buffer.from(value));
+        resetIdleTimer();
+      }
+    }
+    const data = Buffer.concat(chunks);
+    if (!data.length) throw new Error("下载失败：远程素材内容为空");
+    fs.writeFileSync(outputPath, data);
+  } catch (error) {
+    if (tasks.get(taskId)?.cancelled) throw new Error("下载已取消");
+    if (timedOut) throw new Error("下载失败：远程素材超过 60 秒没有收到新数据");
+    throw error;
+  } finally {
+    if (idleTimer) clearTimeout(idleTimer);
+    task.abortController.signal.removeEventListener("abort", abortForTask);
+  }
 }
 
 async function downloadDouyinImagePost(
@@ -719,7 +763,7 @@ async function downloadDouyinImagePost(
       for (let index = 0; index < imageUrls.length; index += 1) {
         if (tasks.get(taskId)?.cancelled) throw new Error("下载已取消");
         const imagePath = path.join(temporaryDirectory, `image-${String(index + 1).padStart(3, "0")}.img`);
-        await fetchDirectAsset(imageUrls[index], imagePath, request.userAgent, request.referer);
+        await fetchDirectAsset(imageUrls[index], imagePath, request.userAgent, request.referer, taskId);
         temporaryFiles.push(imagePath);
         imagePaths.push(imagePath);
         progress({
@@ -733,7 +777,7 @@ async function downloadDouyinImagePost(
     let audioPath: string | undefined;
     if (audioUrl && mode !== "video") {
       audioPath = path.join(temporaryDirectory, "audio-source");
-      await fetchDirectAsset(audioUrl, audioPath, request.userAgent, request.referer);
+      await fetchDirectAsset(audioUrl, audioPath, request.userAgent, request.referer, taskId);
       temporaryFiles.push(audioPath);
       progress({ status: "downloading", progress: 34, message: "已下载原声音频" });
     }
@@ -875,19 +919,40 @@ async function weChatMediaProfile(metadata: VideoMetadata, taskId: string) {
   const endpoint = new URL("https://channels.weixin.qq.com/finder-preview/api/feed/get_feed_info");
   endpoint.searchParams.set("_rid", `${Math.floor(Date.now() / 1000)}-${crypto.randomUUID().slice(0, 8)}`);
   endpoint.searchParams.set("_pageUrl", "https://channels.weixin.qq.com/finder-preview/pages/feed");
-  const response = await net.fetch(endpoint.toString(), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json, text/plain, */*",
-      "User-Agent": BROWSER_USER_AGENT,
-      Origin: "https://channels.weixin.qq.com",
-      Referer: refererURL.toString(),
-    },
-    body: JSON.stringify({ baseReq: { generalToken: token }, exportId }),
-  });
-  if (!response.ok) throw new Error("下载失败：微信视频号播放接口暂时不可用");
-  const value = await response.json() as any;
+  const task = tasks.get(taskId);
+  if (!task || task.cancelled) throw new Error("下载已取消");
+  const controller = new AbortController();
+  let timedOut = false;
+  const abortForTask = () => controller.abort();
+  task.abortController.signal.addEventListener("abort", abortForTask, { once: true });
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 60_000);
+  let value: any;
+  try {
+    const response = await net.fetch(endpoint.toString(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/plain, */*",
+        "User-Agent": BROWSER_USER_AGENT,
+        Origin: "https://channels.weixin.qq.com",
+        Referer: refererURL.toString(),
+      },
+      body: JSON.stringify({ baseReq: { generalToken: token }, exportId }),
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error("下载失败：微信视频号播放接口暂时不可用");
+    value = await response.json();
+  } catch (error) {
+    if (tasks.get(taskId)?.cancelled) throw new Error("下载已取消");
+    if (timedOut) throw new Error("下载失败：微信视频号播放接口响应超时");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    task.abortController.signal.removeEventListener("abort", abortForTask);
+  }
   if (value.errCode && value.errCode !== 0) throw new Error(`下载失败：${value.errMsg || "微信视频号播放凭证已失效"}`);
   const feed = value.data?.feedInfo;
   const candidates = [feed?.originVideoUrl, feed?.videoUrl, feed?.h264VideoInfo?.videoUrl, feed?.h265VideoInfo?.videoUrl]
@@ -935,6 +1000,9 @@ async function downloadWeChat(
   for (let index = 0; index < commands.length; index += 1) {
     const command = commands[index];
     const result = await runProcess(ffmpeg, command.args, {
+      timeoutMs: 30 * 60_000,
+      stallTimeoutMs: 90_000,
+      isPaused: () => tasks.get(taskId)?.paused === true,
       onSpawn: (child) => {
         const current = tasks.get(taskId);
         if (current) current.child = child;
@@ -967,7 +1035,12 @@ export async function downloadVideo(
 ) {
   const directory = downloadDirectoryPath?.trim() || defaultDownloadsDirectory();
   fs.mkdirSync(directory, { recursive: true });
-  tasks.set(taskId, { cancelled: false, paused: false, trackedPrefixes: new Set() });
+  tasks.set(taskId, {
+    abortController: new AbortController(),
+    cancelled: false,
+    paused: false,
+    trackedPrefixes: new Set(),
+  });
   try {
     let savedPath: string;
     if (metadata.platform === "wechatChannels") {
@@ -1017,29 +1090,62 @@ export async function cancelDownload(taskId: string, deletePartialFiles: boolean
   const state = tasks.get(taskId);
   if (!state) return false;
   state.cancelled = true;
+  state.abortController.abort();
   terminateProcessTree(state.child);
+  let cleanupCompleted = true;
   if (deletePartialFiles) {
-    for (const prefix of state.trackedPrefixes) {
-      const directory = path.dirname(prefix);
-      const name = path.basename(prefix);
-      if (!fs.existsSync(directory)) continue;
-      for (const entry of fs.readdirSync(directory)) {
-        if (entry !== name && !entry.startsWith(`${name}.`)) continue;
-        const target = path.join(directory, entry);
-        if (fs.lstatSync(target).isFile()) fs.unlinkSync(target);
+    const cleanup = cleanupTrackedDownloadFiles(state.trackedPrefixes);
+    cleanupCompleted = await Promise.race([
+      cleanup.then(() => true),
+      new Promise<false>((resolve) => setTimeout(() => resolve(false), 2_000)),
+    ]);
+  }
+  appendDiagnostic(
+    "下载",
+    !deletePartialFiles
+      ? "任务已取消，临时文件已保留"
+      : cleanupCompleted
+        ? "任务已取消，临时文件已清理"
+        : "任务已取消，临时文件继续在后台清理",
+  );
+  return true;
+}
+
+async function cleanupTrackedDownloadFiles(prefixes: Set<string>) {
+  for (const prefix of prefixes) {
+    const directory = path.dirname(prefix);
+    const name = path.basename(prefix);
+    let entries: string[];
+    try {
+      entries = await fs.promises.readdir(directory);
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (entry !== name && !entry.startsWith(`${name}.`)) continue;
+      const target = path.join(directory, entry);
+      try {
+        if ((await fs.promises.lstat(target)).isFile()) {
+          await fs.promises.unlink(target);
+        }
+      } catch {
+        // 文件可能已被下载进程或用户移除，无需阻断取消操作。
       }
     }
   }
-  appendDiagnostic("下载", deletePartialFiles ? "任务已取消，临时文件已清理" : "任务已取消，临时文件已保留");
-  return true;
 }
 
 export async function pauseDownload(taskId: string) {
   const state = tasks.get(taskId);
   if (!state?.child?.pid) return false;
-  await setProcessPaused(state.child.pid, true);
   state.paused = true;
-  return true;
+  try {
+    await setProcessPaused(state.child.pid, true);
+    return true;
+  } catch (error) {
+    state.paused = false;
+    throw error;
+  }
 }
 
 export async function resumeDownload(taskId: string) {

@@ -41,6 +41,19 @@ function broadcastSettings(settings: AppSettings) {
   }
 }
 
+function diagnosticErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error || "未知错误");
+}
+
+async function withDiagnosticFailure<T>(category: string, operation: () => Promise<T>) {
+  try {
+    return await operation();
+  } catch (error) {
+    appendDiagnostic(category, `失败：${diagnosticErrorMessage(error)}`);
+    throw error;
+  }
+}
+
 function createMainWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
   const window = new BrowserWindow({
@@ -100,7 +113,10 @@ function registerBridgeHandlers() {
     window.focus();
     return { opened: true };
   });
-  ipcMain.handle("bridge:parse-video", (_event, inputText: string) => parseVideo(inputText));
+  ipcMain.handle(
+    "bridge:parse-video",
+    (_event, inputText: string) => withDiagnosticFailure("解析", () => parseVideo(inputText)),
+  );
   ipcMain.handle("bridge:select-download-directory", async () => {
     const options: Electron.OpenDialogOptions = {
       title: "选择视频下载保存目录",
@@ -118,13 +134,13 @@ function registerBridgeHandlers() {
     downloadDirectoryPath?: string;
     downloadMode: Parameters<typeof downloadVideo>[2];
     taskIdentifier: string;
-  }) => downloadVideo(
+  }) => withDiagnosticFailure("下载", () => downloadVideo(
     payload.metadata,
     payload.downloadDirectoryPath,
     payload.downloadMode,
     payload.taskIdentifier,
     (progress) => event.sender.send(`bridge:download-progress:${payload.taskIdentifier}`, progress),
-  ));
+  )));
   ipcMain.handle("bridge:cancel-download", async (_event, payload: { taskIdentifier: string; deletePartialFiles: boolean }) => ({
     cancelled: await cancelDownload(payload.taskIdentifier, payload.deletePartialFiles),
   }));

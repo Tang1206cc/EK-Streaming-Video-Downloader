@@ -9,6 +9,7 @@ import { appendDiagnostic } from "./diagnostics.js";
 import { runProcess } from "./processRunner.js";
 import type { AppLanguage } from "./settings.js";
 import { isNewerVersion, parseReleaseVersion, windowsReleaseAssetNames } from "./releaseContract.js";
+import { buildWindowsInstallScript } from "./windowsInstallScript.js";
 
 const RELEASE_API = "https://api.github.com/repos/Tang1206cc/EK-Streaming-Video-Downloader/releases/latest";
 const APP_ID = "com.tang1206cc.ekstreamdl";
@@ -145,13 +146,7 @@ async function validateExecutable(executable: string, expectedVersion: string) {
 function launchInstaller(sourceDirectory: string) {
   const targetDirectory = path.dirname(process.execPath);
   const scriptPath = path.join(app.getPath("temp"), `ek-streamdl-updater-${crypto.randomUUID()}.ps1`);
-  const script = `param([int]$ProcessId,[string]$Source,[string]$Target,[string]$Executable)\n` +
-    `$ErrorActionPreference='Stop'\n` +
-    `Wait-Process -Id $ProcessId -Timeout 120 -ErrorAction SilentlyContinue\n` +
-    `New-Item -ItemType Directory -Force -Path $Target | Out-Null\n` +
-    `Copy-Item -Path (Join-Path $Source '*') -Destination $Target -Recurse -Force\n` +
-    `Start-Process -FilePath (Join-Path $Target $Executable)\n`;
-  fs.writeFileSync(scriptPath, script, "utf8");
+  fs.writeFileSync(scriptPath, buildWindowsInstallScript(), "utf8");
   const child = spawn("powershell.exe", [
     "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath,
     "-ProcessId", String(process.pid), "-Source", sourceDirectory,

@@ -58,16 +58,19 @@ final class VideoBridge: NSObject, WKScriptMessageHandler {
                     let downloadMode = DownloadMode(rawValue: payload["downloadMode"] as? String ?? "") ?? .complete
                     let taskIdentifier = payload["taskIdentifier"] as? String ?? id
                     DiagnosticLogStore.shared.append("下载", "开始下载 \(metadata.platformName) 内容，模式：\(downloadMode.rawValue)")
-                    let savedPath = try await service.download(
-                        metadata: metadata,
-                        downloadDirectoryPath: downloadDirectoryPath,
-                        mode: downloadMode,
-                        taskIdentifier: taskIdentifier
-                    ) { [weak self] event in
-                        Task { @MainActor in
-                            try? self?.emitProgress(id: id, event: event)
+                    let service = self.service
+                    let savedPath = try await Task.detached(priority: .userInitiated) { [weak self] in
+                        try await service.download(
+                            metadata: metadata,
+                            downloadDirectoryPath: downloadDirectoryPath,
+                            mode: downloadMode,
+                            taskIdentifier: taskIdentifier
+                        ) { event in
+                            Task { @MainActor in
+                                try? self?.emitProgress(id: id, event: event)
+                            }
                         }
-                    }
+                    }.value
                     DiagnosticLogStore.shared.append("下载", "媒体校验通过，已保存：\(savedPath)")
                     try await MainActor.run {
                         try resolve(id: id, value: ["savedPath": savedPath])
@@ -161,7 +164,7 @@ final class VideoBridge: NSObject, WKScriptMessageHandler {
                     throw UserFacingError("未知操作")
                 }
             } catch {
-                DiagnosticLogStore.shared.append(action, "失败：(userMessage(from: error))")
+                DiagnosticLogStore.shared.append(action, "失败：\(userMessage(from: error))")
                 await MainActor.run {
                     reject(id: id, message: userMessage(from: error))
                 }

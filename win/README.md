@@ -102,10 +102,10 @@ pnpm run dist:win
 Windows 更新器只接受发布、非草稿、非预发布的 GitHub Release，并严格寻找：
 
 ```text
-windows-x64-EK StreamDL-<版本号>.zip
+windows-x64-EK.StreamDL-<版本号>.zip
 ```
 
-大小写、连字符、`x64`、产品名中的空格、版本位置和 `.zip` 扩展名均是更新协议的一部分。`package.json` 已将 ZIP 构建产物固定为该名称。
+同时兼容既有历史附件名 `windows-x64-EK StreamDL-<版本号>.zip`。新版本发版必须使用点号形式；大小写、连字符、`x64`、产品名中的点号、版本位置和 `.zip` 扩展名均是更新协议的一部分。`package.json` 已将 ZIP 构建产物固定为该名称。
 
 更新流程会：
 

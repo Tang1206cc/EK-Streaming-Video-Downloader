@@ -3553,11 +3553,15 @@ final class YTDLPService {
         downloadControl.registerOutputPath(path, taskIdentifier: taskIdentifier)
     }
 
-    private func registerCurrentDownloadProcess(_ process: Process) {
+    private func registerCurrentDownloadProcess(_ process: Process, pausable: Bool = false) {
         guard let taskIdentifier = DownloadExecutionContext.taskIdentifier else {
             return
         }
-        downloadControl.register(process: process, taskIdentifier: taskIdentifier)
+        downloadControl.register(
+            process: process,
+            taskIdentifier: taskIdentifier,
+            pausable: pausable
+        )
     }
 
     private func unregisterCurrentDownloadProcess(_ process: Process) {
@@ -3573,6 +3577,13 @@ final class YTDLPService {
             return
         }
         throw UserFacingError("下载已取消")
+    }
+
+    private func isCurrentDownloadPaused() -> Bool {
+        guard let taskIdentifier = DownloadExecutionContext.taskIdentifier else {
+            return false
+        }
+        return downloadControl.isPaused(taskIdentifier: taskIdentifier)
     }
 
     private func outputBaseName(for metadata: VideoMetadata, suffix: String?) -> String {
@@ -4018,18 +4029,42 @@ final class YTDLPService {
                 errorBuffer.append(data)
             }
         }
+        defer {
+            outputPipe.fileHandleForReading.readabilityHandler = nil
+            errorPipe.fileHandleForReading.readabilityHandler = nil
+        }
 
         try process.run()
-        registerCurrentDownloadProcess(process)
+        registerCurrentDownloadProcess(process, pausable: true)
         defer {
             unregisterCurrentDownloadProcess(process)
         }
 
         var lastProgress = progressStart
+        var lastObservedBytes: Int64 = -1
+        var lastActivityAt = Date()
+        var activeDuration: TimeInterval = 0
+        var previousTick = Date()
+        var watchdogError: UserFacingError?
         while process.isRunning {
+            try throwIfCurrentDownloadCancelled()
+            let now = Date()
+            let paused = isCurrentDownloadPaused()
+            if paused {
+                lastActivityAt = now
+            } else {
+                activeDuration += now.timeIntervalSince(previousTick)
+            }
+            previousTick = now
+
+            let attributes = try? FileManager.default.attributesOfItem(atPath: outputPath)
+            let currentBytes = (attributes?[.size] as? NSNumber)?.int64Value ?? 0
+            if currentBytes > lastObservedBytes {
+                lastObservedBytes = currentBytes
+                lastActivityAt = now
+            }
+
             if let totalBytes, totalBytes > 0 {
-                let attributes = try? FileManager.default.attributesOfItem(atPath: outputPath)
-                let currentBytes = (attributes?[.size] as? NSNumber)?.int64Value ?? 0
                 let ratio = max(0, min(1, Double(currentBytes) / Double(totalBytes)))
                 let span = max(0, progressEnd - progressStart)
                 let currentProgress = max(
@@ -4041,9 +4076,28 @@ final class YTDLPService {
                     progress(DownloadProgressEvent(status: "downloading", progress: currentProgress, message: progressMessage))
                 }
             }
+
+            if !paused, now.timeIntervalSince(lastActivityAt) >= 60 {
+                watchdogError = UserFacingError("下载失败：网络传输超过 60 秒没有收到新数据")
+                process.terminate()
+                if process.isRunning {
+                    kill(process.processIdentifier, SIGKILL)
+                }
+                break
+            }
+            if !paused, activeDuration >= 30 * 60 {
+                watchdogError = UserFacingError("下载失败：单个下载阶段超过 30 分钟")
+                process.terminate()
+                if process.isRunning {
+                    kill(process.processIdentifier, SIGKILL)
+                }
+                break
+            }
             try await Task.sleep(nanoseconds: 300_000_000)
         }
-        process.waitUntilExit()
+        if process.isRunning {
+            process.waitUntilExit()
+        }
 
         outputPipe.fileHandleForReading.readabilityHandler = nil
         errorPipe.fileHandleForReading.readabilityHandler = nil
@@ -4051,6 +4105,9 @@ final class YTDLPService {
         errorBuffer.append(errorPipe.fileHandleForReading.readDataToEndOfFile())
 
         try throwIfCurrentDownloadCancelled()
+        if let watchdogError {
+            throw watchdogError
+        }
         guard process.terminationStatus == 0 else {
             let errorText = [
                 String(data: outputBuffer.data(), encoding: .utf8),
@@ -4076,9 +4133,11 @@ final class YTDLPService {
         process.standardError = errorPipe
 
         let errorBuffer = LockedData()
+        let activity = DownloadActivityTracker()
         errorPipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
             if !data.isEmpty {
+                activity.markActivity()
                 errorBuffer.append(data)
                 if let line = String(data: data, encoding: .utf8) {
                     line.components(separatedBy: .newlines)
@@ -4092,19 +4151,22 @@ final class YTDLPService {
             guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else {
                 return
             }
+            activity.markActivity()
             text.components(separatedBy: .newlines)
                 .filter { !$0.isEmpty }
                 .forEach(onLine)
         }
+        defer {
+            outputPipe.fileHandleForReading.readabilityHandler = nil
+            errorPipe.fileHandleForReading.readabilityHandler = nil
+        }
 
         try process.run()
-        registerCurrentDownloadProcess(process)
+        registerCurrentDownloadProcess(process, pausable: true)
         defer {
             unregisterCurrentDownloadProcess(process)
         }
-        process.waitUntilExit()
-        outputPipe.fileHandleForReading.readabilityHandler = nil
-        errorPipe.fileHandleForReading.readabilityHandler = nil
+        try await waitForStreamingDownloadProcess(process, activity: activity)
 
         try throwIfCurrentDownloadCancelled()
         guard process.terminationStatus == 0 else {
@@ -4125,11 +4187,13 @@ final class YTDLPService {
         process.standardError = errorPipe
 
         let errorBuffer = LockedData()
+        let activity = DownloadActivityTracker()
         outputPipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
             guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else {
                 return
             }
+            activity.markActivity()
             text.components(separatedBy: .newlines)
                 .filter { !$0.isEmpty }
                 .forEach(onLine)
@@ -4137,23 +4201,69 @@ final class YTDLPService {
         errorPipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
             if !data.isEmpty {
+                activity.markActivity()
                 errorBuffer.append(data)
             }
         }
+        defer {
+            outputPipe.fileHandleForReading.readabilityHandler = nil
+            errorPipe.fileHandleForReading.readabilityHandler = nil
+        }
 
         try process.run()
-        registerCurrentDownloadProcess(process)
+        registerCurrentDownloadProcess(process, pausable: true)
         defer {
             unregisterCurrentDownloadProcess(process)
         }
-        process.waitUntilExit()
-        outputPipe.fileHandleForReading.readabilityHandler = nil
-        errorPipe.fileHandleForReading.readabilityHandler = nil
+        try await waitForStreamingDownloadProcess(process, activity: activity)
 
         try throwIfCurrentDownloadCancelled()
         guard process.terminationStatus == 0 else {
             let errorText = String(data: errorBuffer.data(), encoding: .utf8) ?? ""
             throw standardizeFFmpegError(errorText)
+        }
+    }
+
+    private func waitForStreamingDownloadProcess(
+        _ process: Process,
+        activity: DownloadActivityTracker
+    ) async throws {
+        var activeDuration: TimeInterval = 0
+        var previousTick = Date()
+        var watchdogError: UserFacingError?
+
+        while process.isRunning {
+            try throwIfCurrentDownloadCancelled()
+            let now = Date()
+            let paused = isCurrentDownloadPaused()
+            if paused {
+                activity.markActivity(at: now)
+            } else {
+                activeDuration += now.timeIntervalSince(previousTick)
+            }
+            previousTick = now
+
+            if !paused, now.timeIntervalSince(activity.lastActivity()) >= 90 {
+                watchdogError = UserFacingError("下载失败：处理进程超过 90 秒没有产生新数据")
+            } else if !paused, activeDuration >= 2 * 60 * 60 {
+                watchdogError = UserFacingError("下载失败：单个处理阶段超过 2 小时")
+            }
+
+            if watchdogError != nil {
+                process.terminate()
+                if process.isRunning {
+                    kill(process.processIdentifier, SIGKILL)
+                }
+                break
+            }
+            try await Task.sleep(nanoseconds: 300_000_000)
+        }
+
+        if process.isRunning {
+            process.waitUntilExit()
+        }
+        if let watchdogError {
+            throw watchdogError
         }
     }
 
@@ -4369,8 +4479,13 @@ private enum DownloadExecutionContext {
 }
 
 private final class DownloadControlRegistry {
+    private struct TrackedProcess {
+        let process: Process
+        let pausable: Bool
+    }
+
     private final class State {
-        var processes: [ObjectIdentifier: Process] = [:]
+        var processes: [ObjectIdentifier: TrackedProcess] = [:]
         var outputPaths: Set<String> = []
         var outputTemplates: [String: Set<String>] = [:]
         var isCancelled = false
@@ -4392,13 +4507,16 @@ private final class DownloadControlRegistry {
         lock.unlock()
     }
 
-    func register(process: Process, taskIdentifier: String) {
+    func register(process: Process, taskIdentifier: String, pausable: Bool) {
         lock.lock()
         let state = states[taskIdentifier] ?? State()
         states[taskIdentifier] = state
-        state.processes[ObjectIdentifier(process)] = process
+        state.processes[ObjectIdentifier(process)] = TrackedProcess(
+            process: process,
+            pausable: pausable
+        )
         let shouldTerminate = state.isCancelled
-        let shouldPause = state.isPaused
+        let shouldPause = state.isPaused && pausable
         lock.unlock()
 
         if shouldTerminate, process.isRunning {
@@ -4415,7 +4533,9 @@ private final class DownloadControlRegistry {
             throw UserFacingError("当前下载任务无法暂停")
         }
         state.isPaused = true
-        let processes = Array(state.processes.values)
+        let processes = state.processes.values
+            .filter(\.pausable)
+            .map(\.process)
         lock.unlock()
         for process in processes where process.isRunning {
             kill(process.processIdentifier, SIGSTOP)
@@ -4429,7 +4549,9 @@ private final class DownloadControlRegistry {
             throw UserFacingError("当前下载任务无法继续")
         }
         state.isPaused = false
-        let processes = Array(state.processes.values)
+        let processes = state.processes.values
+            .filter(\.pausable)
+            .map(\.process)
         lock.unlock()
         for process in processes where process.isRunning {
             kill(process.processIdentifier, SIGCONT)
@@ -4462,6 +4584,13 @@ private final class DownloadControlRegistry {
     func isCancelled(taskIdentifier: String) -> Bool {
         lock.lock()
         let value = states[taskIdentifier]?.isCancelled ?? false
+        lock.unlock()
+        return value
+    }
+
+    func isPaused(taskIdentifier: String) -> Bool {
+        lock.lock()
+        let value = states[taskIdentifier]?.isPaused ?? false
         lock.unlock()
         return value
     }
@@ -4540,7 +4669,7 @@ private final class DownloadControlRegistry {
 
     private func snapshot(from state: State) -> Snapshot {
         Snapshot(
-            processes: Array(state.processes.values),
+            processes: state.processes.values.map(\.process),
             outputPaths: state.outputPaths,
             outputTemplates: state.outputTemplates
         )
@@ -4577,20 +4706,15 @@ private final class DownloadControlRegistry {
             return []
         }
         let prefixPath = String(outputTemplate[..<markerRange.lowerBound])
-        let prefixURL = URL(fileURLWithPath: prefixPath)
-        let directoryURL = prefixURL.deletingLastPathComponent()
-        let filenamePrefix = prefixURL.lastPathComponent
-        guard let fileURLs = try? FileManager.default.contentsOfDirectory(
-            at: directoryURL,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            return []
-        }
+        // 精确检查有限候选，避免云同步下载目录的全量枚举阻塞任务控制。
+        let possibleExtensions = [
+            "mp4", "mkv", "webm", "mov",
+            "m4a", "mp3", "opus", "ogg", "wav", "flac", "aac"
+        ]
         return Set(
-            fileURLs
-                .filter { $0.lastPathComponent.hasPrefix(filenamePrefix) }
-                .map(\.path)
+            possibleExtensions
+                .map { "\(prefixPath)\($0)" }
+                .filter { FileManager.default.fileExists(atPath: $0) }
         )
     }
 
@@ -4627,6 +4751,24 @@ private final class LockedData {
     func data() -> Data {
         lock.lock()
         let value = storage
+        lock.unlock()
+        return value
+    }
+}
+
+private final class DownloadActivityTracker {
+    private var timestamp = Date()
+    private let lock = NSLock()
+
+    func markActivity(at date: Date = Date()) {
+        lock.lock()
+        timestamp = date
+        lock.unlock()
+    }
+
+    func lastActivity() -> Date {
+        lock.lock()
+        let value = timestamp
         lock.unlock()
         return value
     }
