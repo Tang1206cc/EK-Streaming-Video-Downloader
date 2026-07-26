@@ -118,6 +118,46 @@ async function inspectTool(
   }
 }
 
+async function inspectFfmpeg(): Promise<RuntimeEnvironmentComponent> {
+  const component = await inspectTool(
+    "ffmpeg",
+    "FFmpeg",
+    "合并音视频、提取音频并完成下载后的媒体处理",
+    resolveFfmpegPath(),
+    ["-version"],
+  );
+  if (!component.installed || !component.path) return component;
+
+  const output = path.join(os.tmpdir(), `ek-streamdl-ffmpeg-self-test-${crypto.randomUUID()}.mp4`);
+  try {
+    const result = await runProcess(component.path, [
+      "-y", "-v", "error",
+      "-f", "lavfi", "-i", "color=c=black:s=64x64:r=10",
+      "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+      "-t", "0.25", "-c:v", "libx264", "-c:a", "aac", "-shortest",
+      output,
+    ], { timeoutMs: 20_000 });
+    const size = fs.existsSync(output) ? fs.statSync(output).size : 0;
+    if (result.exitCode !== 0 || size <= 1_024) {
+      throw new Error(result.stderr || "未生成有效媒体文件");
+    }
+    component.detail += "；H.264/AAC 转码自检通过";
+    return component;
+  } catch {
+    return {
+      ...component,
+      installed: false,
+      detail: "FFmpeg 可启动，但 H.264/AAC 转码自检未通过",
+    };
+  } finally {
+    try {
+      if (fs.existsSync(output)) fs.unlinkSync(output);
+    } catch {
+      // 自检结论不应被临时文件清理失败覆盖。
+    }
+  }
+}
+
 function inspectWindows(): RuntimeEnvironmentComponent {
   const [major = 0, , build = 0] = os.release().split(".").map(Number);
   const supported = process.platform === "win32" && (major > 10 || (major === 10 && build >= 19045));
@@ -203,7 +243,7 @@ export async function checkRuntimeEnvironment(): Promise<RuntimeEnvironmentRepor
   const [network, ytDlp, ffmpeg, latestVersion] = await Promise.all([
     inspectNetwork(),
     inspectTool("yt-dlp", "yt-dlp", "解析视频页面信息并获取可下载的视频、音频资源", resolveYtDlpPath(), ["--version"]),
-    inspectTool("ffmpeg", "FFmpeg", "合并音视频、提取音频并完成下载后的媒体处理", resolveFfmpegPath(), ["-version"]),
+    inspectFfmpeg(),
     latestYtDlpVersion(),
   ]);
   if (ytDlp.installed && latestVersion) {

@@ -192,20 +192,42 @@ function registerBridgeHandlers() {
 
 function installMenu() {
   const settings = readSettings();
-  const isEnglish = settings.language === "en";
+  const labels = settings.language === "en"
+    ? {
+        file: "File",
+        preferences: "Preferences…",
+        exit: "Exit",
+        help: "Help",
+        checkForUpdates: "Check for Updates",
+      }
+    : settings.language === "zh-Hant"
+      ? {
+          file: "檔案",
+          preferences: "偏好設定…",
+          exit: "結束",
+          help: "說明",
+          checkForUpdates: "檢查更新",
+        }
+      : {
+          file: "文件",
+          preferences: "偏好设置…",
+          exit: "退出",
+          help: "帮助",
+          checkForUpdates: "检查更新",
+        };
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     {
-      label: isEnglish ? "File" : "文件",
+      label: labels.file,
       submenu: [
-        { label: isEnglish ? "Preferences…" : "偏好设置…", accelerator: "Ctrl+,", click: () => showSettingsWindow(preloadPath) },
+        { label: labels.preferences, accelerator: "Ctrl+,", click: () => showSettingsWindow(preloadPath) },
         { type: "separator" },
-        { label: isEnglish ? "Exit" : "退出", accelerator: "Alt+F4", click: () => app.quit() },
+        { label: labels.exit, accelerator: "Alt+F4", click: () => app.quit() },
       ],
     },
     {
-      label: isEnglish ? "Help" : "帮助",
+      label: labels.help,
       submenu: [
-        { label: isEnglish ? "Check for Updates" : "检查更新", click: () => void checkForUpdates(true, readSettings().language) },
+        { label: labels.checkForUpdates, click: () => void checkForUpdates(true, readSettings().language) },
         { label: "GitHub", click: () => void shell.openExternal("https://github.com/Tang1206cc/EK-Streaming-Video-Downloader") },
       ],
     },

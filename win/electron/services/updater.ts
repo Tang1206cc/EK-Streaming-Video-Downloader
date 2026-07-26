@@ -31,6 +31,9 @@ function strings(language: AppLanguage) {
     later: "Later",
     none: "EK StreamDL is up to date.",
     error: "Unable to check for updates",
+    progressTitle: "EK StreamDL Update",
+    downloading: "Downloading the EK StreamDL update",
+    preparing: "Preparing download…",
   };
   if (language === "zh-Hant") return {
     available: "EK StreamDL 有新版本可用",
@@ -40,6 +43,9 @@ function strings(language: AppLanguage) {
     later: "下次再說",
     none: "EK StreamDL 已是最新版本。",
     error: "無法檢查更新",
+    progressTitle: "EK StreamDL 更新",
+    downloading: "正在下載 EK StreamDL 更新",
+    preparing: "準備下載…",
   };
   return {
     available: "EK StreamDL 有新版本可用",
@@ -49,6 +55,9 @@ function strings(language: AppLanguage) {
     later: "下次再说",
     none: "EK StreamDL 已是最新版本。",
     error: "无法检查更新",
+    progressTitle: "EK StreamDL 更新",
+    downloading: "正在下载 EK StreamDL 更新",
+    preparing: "准备下载…",
   };
 }
 
@@ -66,7 +75,8 @@ async function latestRelease() {
   return release;
 }
 
-function progressWindow() {
+function progressWindow(language: AppLanguage) {
+  const t = strings(language);
   const window = new BrowserWindow({
     width: 460,
     height: 180,
@@ -74,11 +84,11 @@ function progressWindow() {
     minimizable: false,
     maximizable: false,
     autoHideMenuBar: true,
-    title: "EK StreamDL 更新",
+    title: t.progressTitle,
     backgroundColor: "#f5f7fb",
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
-  void window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><meta charset="utf-8"><style>body{font:14px 'Segoe UI',sans-serif;color:#152033;background:#f5f7fb;padding:24px}h2{font-size:18px;margin:0 0 20px}progress{width:100%;height:16px}p{color:#667085}</style><h2>正在下载 EK StreamDL 更新</h2><progress id="p" max="100" value="0"></progress><p id="m">准备下载…</p>`)}`);
+  void window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><meta charset="utf-8"><style>body{font:14px 'Segoe UI',sans-serif;color:#152033;background:#f5f7fb;padding:24px}h2{font-size:18px;margin:0 0 20px}progress{width:100%;height:16px}p{color:#667085}</style><h2>${t.downloading}</h2><progress id="p" max="100" value="0"></progress><p id="m">${t.preparing}</p>`)}`);
   return window;
 }
 
@@ -185,7 +195,7 @@ export async function checkForUpdates(interactive: boolean, language: AppLanguag
       noLink: true,
     });
     if (choice.response !== 0) return { updateAvailable: true, deferred: true };
-    const window = progressWindow();
+    const window = progressWindow(language);
     const archive = path.join(app.getPath("temp"), `${crypto.randomUUID()}-${expectedName}`);
     const digest = await downloadAsset(asset.browser_download_url, archive, window);
     const staging = path.join(app.getPath("temp"), `EKStreamDL-Update-${remoteText}-${crypto.randomUUID()}`);

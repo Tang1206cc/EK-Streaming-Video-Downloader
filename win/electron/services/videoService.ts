@@ -84,12 +84,44 @@ type TaskState = {
   abortController: AbortController;
   cancelled: boolean;
   paused: boolean;
+  processControl: Promise<void>;
   trackedPrefixes: Set<string>;
 };
 
 type DirectVideoMetadata = VideoMetadata;
 
 const tasks = new Map<string, TaskState>();
+
+function queueProcessControl(state: TaskState, pid: number, paused: boolean) {
+  const operation = state.processControl
+    .catch(() => undefined)
+    .then(() => setProcessPaused(pid, paused));
+  state.processControl = operation;
+  return operation;
+}
+
+function registerTaskChild(taskId: string, child: ChildProcessWithoutNullStreams) {
+  const state = tasks.get(taskId);
+  if (!state) return;
+  state.child = child;
+  child.once("close", () => {
+    if (tasks.get(taskId) === state && state.child === child) {
+      state.child = undefined;
+    }
+  });
+  if (state.cancelled) {
+    terminateProcessTree(child);
+    return;
+  }
+  if (state.paused && child.pid) {
+    void queueProcessControl(state, child.pid, true).catch((error) => {
+      if (tasks.get(taskId) === state && state.paused) {
+        state.paused = false;
+      }
+      appendDiagnostic("下载", `准备阶段延迟暂停失败：${error instanceof Error ? error.message : "未知错误"}`);
+    });
+  }
+}
 
 function text(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -517,10 +549,7 @@ async function runYtDlpDownload(
     timeoutMs: 2 * 60 * 60_000,
     stallTimeoutMs: 90_000,
     isPaused: () => tasks.get(taskId)?.paused === true,
-    onSpawn: (child) => {
-      const current = tasks.get(taskId);
-      if (current) current.child = child;
-    },
+    onSpawn: (child) => registerTaskChild(taskId, child),
     onLine: (line) => {
       const file = line.match(/^__EK_FILE__:(.+)$/)?.[1]?.trim();
       if (file) savedPaths.push(file);
@@ -581,10 +610,7 @@ async function runFfmpegCommand(
       ...args,
     ],
     {
-      onSpawn: (child) => {
-        const current = tasks.get(taskId);
-        if (current) current.child = child;
-      },
+      onSpawn: (child) => registerTaskChild(taskId, child),
       onLine: (line) => {
         const raw = Number(line.match(/^out_time_(?:us|ms)=(\d+)/)?.[1]);
         if (duration && Number.isFinite(raw)) {
@@ -1003,10 +1029,7 @@ async function downloadWeChat(
       timeoutMs: 30 * 60_000,
       stallTimeoutMs: 90_000,
       isPaused: () => tasks.get(taskId)?.paused === true,
-      onSpawn: (child) => {
-        const current = tasks.get(taskId);
-        if (current) current.child = child;
-      },
+      onSpawn: (child) => registerTaskChild(taskId, child),
       onLine: (line) => {
         const time = line.match(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/);
         const durationParts = metadata.duration.split(":").map(Number);
@@ -1039,6 +1062,7 @@ export async function downloadVideo(
     abortController: new AbortController(),
     cancelled: false,
     paused: false,
+    processControl: Promise.resolve(),
     trackedPrefixes: new Set(),
   });
   try {
@@ -1090,6 +1114,7 @@ export async function cancelDownload(taskId: string, deletePartialFiles: boolean
   const state = tasks.get(taskId);
   if (!state) return false;
   state.cancelled = true;
+  state.paused = false;
   state.abortController.abort();
   terminateProcessTree(state.child);
   let cleanupCompleted = true;
@@ -1137,23 +1162,30 @@ async function cleanupTrackedDownloadFiles(prefixes: Set<string>) {
 
 export async function pauseDownload(taskId: string) {
   const state = tasks.get(taskId);
-  if (!state?.child?.pid) return false;
+  if (!state || state.cancelled) return false;
   state.paused = true;
+  if (!state.child?.pid) return true;
   try {
-    await setProcessPaused(state.child.pid, true);
+    await queueProcessControl(state, state.child.pid, true);
     return true;
   } catch (error) {
-    state.paused = false;
+    if (state.paused) state.paused = false;
     throw error;
   }
 }
 
 export async function resumeDownload(taskId: string) {
   const state = tasks.get(taskId);
-  if (!state?.child?.pid || !state.paused) return false;
-  await setProcessPaused(state.child.pid, false);
+  if (!state || state.cancelled || !state.paused) return false;
   state.paused = false;
-  return true;
+  if (!state.child?.pid) return true;
+  try {
+    await queueProcessControl(state, state.child.pid, false);
+    return true;
+  } catch (error) {
+    if (!state.paused) state.paused = true;
+    throw error;
+  }
 }
 
 export async function downloadCover(metadata: VideoMetadata, downloadDirectoryPath?: string) {
