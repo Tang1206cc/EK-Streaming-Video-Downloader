@@ -220,6 +220,7 @@ async function applySystemProxyToCommandLineTools() {
 }
 
 if (!isVersionQuery) {
+  app.disableHardwareAcceleration();
   const hasLock = app.requestSingleInstanceLock();
   if (!hasLock) {
     app.quit();
