@@ -8,6 +8,7 @@ const supportedSamples = [
   ["https://b23.tv/3RB2LDv", "bilibili"],
   ["http://xhslink.com/o/3cY3K10KClX", "xiaohongshu"],
   ["http://xhslink.com/o/5cyhhhFC4gc", "xiaohongshu"],
+  ["http://xhslink.cn/o/6xU8o9Pp5Fa", "xiaohongshu"],
   ["https://v.kuaishou.com/7E63UWf3", "kuaishou"],
   ["https://v.kuaishou.com/nSo27v9J", "kuaishou"],
   ["https://v.douyin.com/yD0HBXAQDHU/", "douyin"],
@@ -25,6 +26,7 @@ describe("platform URL recognition", () => {
     "https://bilibili.com.evil.example/video/BV1",
     "https://notdouyin.com/video/1",
     "https://xhslink.com.evil.example/o/1",
+    "https://xhslink.cn.evil.example/o/1",
     "https://weixin.qq.com.evil.example/sph/abc",
     "https://weixin.qq.com/sph/",
   ])("rejects deceptive or incomplete URL %s", (url) => {

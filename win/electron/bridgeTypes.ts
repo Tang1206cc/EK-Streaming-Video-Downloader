@@ -10,6 +10,7 @@ export type VideoMetadata = {
   qualities: QualityOption[]; estimatedSizeMb?: number; parseMode: "mock" | "real"; note: string;
   suggestedFilename?: string; savedPath?: string; collection?: VideoCollection;
   selectedCollectionItems?: VideoCollectionItem[]; directMediaUrl?: string;
+  directMediaKind?: "video" | "image-post"; directImageUrls?: string[]; directAudioUrl?: string;
 };
 export type DownloadProgressEvent = {
   status: DownloadStatus; progress: number; message: string; duration?: string;

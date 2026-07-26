@@ -84,7 +84,9 @@ enum URLTools {
             hostMatches(host, domain: "chenzhongtech.com") {
             return .kuaishou
         }
-        if hostMatches(host, domain: "xiaohongshu.com") || hostMatches(host, domain: "xhslink.com") {
+        if hostMatches(host, domain: "xiaohongshu.com") ||
+            hostMatches(host, domain: "xhslink.com") ||
+            hostMatches(host, domain: "xhslink.cn") {
             return .xiaohongshu
         }
         if hostMatches(host, domain: "toutiao.com") {

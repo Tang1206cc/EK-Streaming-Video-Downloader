@@ -53,6 +53,9 @@ export type VideoMetadata = {
   collection?: VideoCollection;
   selectedCollectionItems?: VideoCollectionItem[];
   directMediaUrl?: string;
+  directMediaKind?: "video" | "image-post";
+  directImageUrls?: string[];
+  directAudioUrl?: string;
 };
 
 export type DownloadTask = {

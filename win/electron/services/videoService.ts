@@ -2,6 +2,7 @@ import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { net } from "electron";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import type {
   DownloadMode,
@@ -25,6 +26,16 @@ import {
   uniqueBasePath,
 } from "./paths.js";
 import { runProcess, setProcessPaused, terminateProcessTree } from "./processRunner.js";
+import {
+  type DirectShareProfile,
+  parseDouyinSharePage,
+  parseKuaishouSharePage,
+  parseToutiaoSharePage,
+  parseToutiaoVodProfile,
+} from "./platformShareParsers.js";
+
+const MOBILE_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+const KUAISHOU_USER_AGENT = "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36 Kwai/12.0.40";
 
 const platformNames: Record<SupportedPlatform, string> = {
   bilibili: "哔哩哔哩",
@@ -75,6 +86,8 @@ type TaskState = {
   trackedPrefixes: Set<string>;
 };
 
+type DirectVideoMetadata = VideoMetadata;
+
 const tasks = new Map<string, TaskState>();
 
 function text(value: unknown) {
@@ -98,7 +111,14 @@ function detectPlatform(value: string): SupportedPlatform | null {
   if (host === "b23.tv" || host === "bilibili.com" || host.endsWith(".bilibili.com")) return "bilibili";
   if (host === "douyin.com" || host.endsWith(".douyin.com") || host.endsWith("iesdouyin.com")) return "douyin";
   if (host === "kuaishou.com" || host.endsWith(".kuaishou.com") || host === "kwai.com" || host.endsWith(".kwai.com")) return "kuaishou";
-  if (host === "xiaohongshu.com" || host.endsWith(".xiaohongshu.com") || host === "xhslink.com" || host.endsWith(".xhslink.com")) return "xiaohongshu";
+  if (
+    host === "xiaohongshu.com"
+    || host.endsWith(".xiaohongshu.com")
+    || host === "xhslink.com"
+    || host.endsWith(".xhslink.com")
+    || host === "xhslink.cn"
+    || host.endsWith(".xhslink.cn")
+  ) return "xiaohongshu";
   if (host === "toutiao.com" || host.endsWith(".toutiao.com")) return "toutiao";
   if (host === "weixin.qq.com" || host === "channels.weixin.qq.com") return "wechatChannels";
   return null;
@@ -217,6 +237,120 @@ async function embeddedCoverIfNeeded(source: string, platform: SupportedPlatform
   }
 }
 
+async function fetchSharePage(
+  url: string,
+  userAgent: string,
+  referer: string,
+  timeoutMs = 35_000,
+) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await net.fetch(url, {
+      redirect: "follow",
+      signal: controller.signal,
+      headers: {
+        "User-Agent": userAgent,
+        Referer: referer,
+        Accept: "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
+      },
+    });
+    if (!response.ok) return null;
+    return { html: await response.text(), resolvedUrl: response.url || url };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function directShareProfile(
+  platform: SupportedPlatform,
+  originalUrl: string,
+  normalizedPageUrl: string,
+): Promise<DirectShareProfile | null> {
+  const candidates = [...new Set([originalUrl, normalizedPageUrl].filter(Boolean))];
+  if (platform === "douyin") {
+    for (const candidate of candidates) {
+      const page = await fetchSharePage(candidate, MOBILE_USER_AGENT, "https://www.douyin.com/").catch(() => null);
+      const profile = page ? parseDouyinSharePage(page.html, page.resolvedUrl) : null;
+      if (profile) return profile;
+    }
+  }
+  if (platform === "kuaishou") {
+    for (const candidate of candidates) {
+      const page = await fetchSharePage(candidate, KUAISHOU_USER_AGENT, "https://v.kuaishou.com/").catch(() => null);
+      const profile = page ? parseKuaishouSharePage(page.html, page.resolvedUrl) : null;
+      if (profile) return profile;
+    }
+  }
+  if (platform === "toutiao") {
+    for (const candidate of candidates) {
+      const page = await fetchSharePage(candidate, MOBILE_USER_AGENT, "https://m.toutiao.com/").catch(() => null);
+      const pageProfile = page ? parseToutiaoSharePage(page.html) : null;
+      if (!page || !pageProfile) continue;
+      const endpoint = `https://vod.bytedanceapi.com/?${pageProfile.playQuery}`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 35_000);
+      try {
+        const response = await net.fetch(endpoint, {
+          signal: controller.signal,
+          headers: {
+            "User-Agent": MOBILE_USER_AGENT,
+            Referer: page.resolvedUrl,
+            Accept: "application/json, text/plain, */*",
+          },
+        });
+        if (!response.ok) continue;
+        const profile = parseToutiaoVodProfile(
+          await response.json() as Record<string, unknown>,
+          pageProfile,
+          page.resolvedUrl,
+        );
+        if (profile) return profile;
+      } catch {
+        continue;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+  }
+  return null;
+}
+
+function metadataFromDirectProfile(
+  originalUrl: string,
+  platform: SupportedPlatform,
+  profile: DirectShareProfile,
+): DirectVideoMetadata {
+  const platformNote = platform === "douyin"
+    ? profile.kind === "image-post"
+      ? "已通过抖音分享页解析图文作品；下载时会用公开图片和原声音频在本机合成视频。"
+      : "已通过抖音分享页解析公开视频信息；下载时会使用无水印实际播放流。"
+    : platform === "kuaishou"
+      ? "已通过快手分享页解析公开视频信息；下载时会使用分享页返回的公开视频地址。"
+      : "已通过今日头条移动分享页解析公开视频信息；下载时会使用分享页返回的实际播放内容。";
+  return {
+    id: profile.id,
+    originalUrl,
+    normalizedUrl: profile.resolvedUrl,
+    platform,
+    platformName: platformNames[platform],
+    title: profile.title,
+    author: profile.author,
+    publishedAt: profile.publishedAt,
+    duration: formatDuration(profile.durationSeconds),
+    coverUrl: profile.coverUrl,
+    qualities: profile.qualities,
+    estimatedSizeMb: profile.sizeBytes ? profile.sizeBytes / 1_048_576 : undefined,
+    parseMode: "real",
+    note: platformNote,
+    suggestedFilename: safeFilename(profile.title),
+    directMediaUrl: profile.mediaUrl,
+    directMediaKind: profile.kind,
+    directImageUrls: profile.imageUrls,
+    directAudioUrl: profile.audioUrl,
+  };
+}
+
 async function parseWeChatPublic(originalUrl: string, url: string): Promise<VideoMetadata> {
   const parsed = new URL(url);
   const shortUri = parsed.hostname === "weixin.qq.com"
@@ -268,6 +402,14 @@ export async function parseVideo(inputText: string): Promise<VideoMetadata> {
   if (!platform) throw new Error("暂不支持的平台");
   appendDiagnostic("解析", `开始解析 ${platformNames[platform]} 链接`);
   if (platform === "wechatChannels") return await parseWeChatPublic(extracted, url);
+  if (platform === "douyin" || platform === "kuaishou" || platform === "toutiao") {
+    const profile = await directShareProfile(platform, extracted, url).catch(() => null);
+    if (profile) {
+      const metadata = metadataFromDirectProfile(extracted, platform, profile);
+      appendDiagnostic("解析", `分享页直解析成功：${metadata.title}`);
+      return metadata;
+    }
+  }
 
   const executable = resolveYtDlpPath();
   if (!executable) throw new Error("未找到 yt-dlp，请先点击“配置所需环境”完成安装");
@@ -393,6 +535,323 @@ async function runYtDlpDownload(
   return savedPaths.at(-1) ?? `${base}.${mode === "audio" ? "m4a" : "mp4"}`;
 }
 
+function durationFromDisplay(value: string) {
+  const parts = value.split(":").map(Number);
+  if (!parts.length || parts.some((part) => !Number.isFinite(part))) return undefined;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return parts[0] > 0 ? parts[0] : undefined;
+}
+
+function directRequestProfile(platform: SupportedPlatform, pageUrl: string) {
+  if (platform === "kuaishou") {
+    return { userAgent: KUAISHOU_USER_AGENT, referer: "https://m.kuaishou.com/" };
+  }
+  if (platform === "toutiao") {
+    return { userAgent: MOBILE_USER_AGENT, referer: pageUrl };
+  }
+  return { userAgent: MOBILE_USER_AGENT, referer: "https://www.douyin.com/" };
+}
+
+async function runFfmpegCommand(
+  executable: string,
+  args: string[],
+  taskId: string,
+  duration: number | undefined,
+  progress: (event: DownloadProgressEvent) => void,
+  progressStart: number,
+  progressEnd: number,
+  message: string,
+) {
+  let lastProgress = progressStart;
+  progress({ status: "downloading", progress: progressStart, message });
+  const result = await runProcess(
+    executable,
+    [
+      "-y",
+      "-nostdin",
+      "-hide_banner",
+      "-loglevel", "warning",
+      "-progress", "pipe:1",
+      "-nostats",
+      ...args,
+    ],
+    {
+      onSpawn: (child) => {
+        const current = tasks.get(taskId);
+        if (current) current.child = child;
+      },
+      onLine: (line) => {
+        const raw = Number(line.match(/^out_time_(?:us|ms)=(\d+)/)?.[1]);
+        if (duration && Number.isFinite(raw)) {
+          const percentage = Math.min(1, raw / 1_000_000 / duration);
+          const current = Math.round(progressStart + percentage * (progressEnd - progressStart));
+          if (current > lastProgress) {
+            lastProgress = current;
+            progress({ status: "downloading", progress: current, message });
+          }
+        }
+      },
+      timeoutMs: 30 * 60_000,
+    },
+  );
+  if (tasks.get(taskId)?.cancelled) throw new Error("下载已取消");
+  if (result.exitCode !== 0) {
+    const detail = (result.stderr || result.stdout).split(/\r?\n/).filter(Boolean).at(-1);
+    throw new Error(`下载失败：${detail ?? "FFmpeg 处理失败"}`);
+  }
+}
+
+async function downloadDirectVideo(
+  metadata: DirectVideoMetadata,
+  profile: DirectShareProfile,
+  directory: string,
+  mode: DownloadMode,
+  taskId: string,
+  progress: (event: DownloadProgressEvent) => void,
+) {
+  const mediaUrl = profile.mediaUrl ?? metadata.directMediaUrl;
+  if (!mediaUrl) throw new Error(`下载失败：${metadata.platformName}未返回可下载的视频地址`);
+  const ffmpeg = resolveFfmpegPath();
+  if (!ffmpeg) throw new Error("未找到 FFmpeg，请先配置所需环境");
+  const duration = profile.durationSeconds ?? durationFromDisplay(metadata.duration);
+  const base = uniqueBasePath(
+    directory,
+    `${metadata.suggestedFilename ?? metadata.title}${suffixForMode(mode)}`,
+    ["mp4", "m4a"],
+  );
+  tasks.get(taskId)?.trackedPrefixes.add(base);
+  const request = directRequestProfile(metadata.platform, profile.resolvedUrl);
+  const input = [
+    "-user_agent", request.userAgent,
+    "-headers", `User-Agent: ${request.userAgent}\r\nReferer: ${request.referer}\r\n`,
+    "-i", mediaUrl,
+  ];
+  if (mode === "audio") {
+    const output = `${base}.m4a`;
+    await runFfmpegCommand(
+      ffmpeg,
+      [...input, "-map", "0:a:0", "-vn", "-c:a", "aac", "-b:a", "192k", output],
+      taskId, duration, progress, 3, 99, "正在下载并提取音频",
+    );
+    return output;
+  }
+  if (mode === "video") {
+    const output = `${base}.mp4`;
+    await runFfmpegCommand(
+      ffmpeg,
+      [...input, "-map", "0:v:0", "-an", "-c:v", "copy", "-movflags", "+faststart", output],
+      taskId, duration, progress, 3, 99, "正在下载视频",
+    );
+    return output;
+  }
+  if (mode === "separate") {
+    const videoOutput = `${base}.mp4`;
+    const audioOutput = `${base}.m4a`;
+    await runFfmpegCommand(
+      ffmpeg,
+      [...input, "-map", "0:v:0", "-an", "-c:v", "copy", "-movflags", "+faststart", videoOutput],
+      taskId, duration, progress, 3, 50, "正在下载视频",
+    );
+    await runFfmpegCommand(
+      ffmpeg,
+      [...input, "-map", "0:a:0", "-vn", "-c:a", "aac", "-b:a", "192k", audioOutput],
+      taskId, duration, progress, 51, 99, "正在提取音频",
+    );
+    return `视频 ${videoOutput}；音频 ${audioOutput}`;
+  }
+  const output = `${base}.mp4`;
+  await runFfmpegCommand(
+    ffmpeg,
+    [
+      ...input,
+      "-map", "0:v:0?",
+      "-map", "0:a:0?",
+      "-c", "copy",
+      "-movflags", "+faststart",
+      output,
+    ],
+    taskId, duration, progress, 3, 99, "正在下载媒体",
+  );
+  return output;
+}
+
+async function fetchDirectAsset(
+  url: string,
+  outputPath: string,
+  userAgent: string,
+  referer: string,
+) {
+  const response = await net.fetch(url, {
+    redirect: "follow",
+    headers: { "User-Agent": userAgent, Referer: referer },
+  });
+  if (!response.ok) throw new Error(`下载失败：远程素材返回 HTTP ${response.status}`);
+  const data = Buffer.from(await response.arrayBuffer());
+  if (!data.length) throw new Error("下载失败：远程素材内容为空");
+  fs.writeFileSync(outputPath, data);
+}
+
+async function downloadDouyinImagePost(
+  metadata: DirectVideoMetadata,
+  profile: DirectShareProfile,
+  directory: string,
+  mode: DownloadMode,
+  taskId: string,
+  progress: (event: DownloadProgressEvent) => void,
+) {
+  const imageUrls = profile.imageUrls ?? metadata.directImageUrls ?? [];
+  const audioUrl = profile.audioUrl ?? metadata.directAudioUrl;
+  if (!imageUrls.length && mode !== "audio") {
+    throw new Error("下载失败：抖音图文作品未返回图片地址");
+  }
+  if (!audioUrl && mode === "audio") {
+    throw new Error("下载失败：抖音图文作品未返回音频地址");
+  }
+  const ffmpeg = resolveFfmpegPath();
+  if (!ffmpeg) throw new Error("未找到 FFmpeg，请先配置所需环境");
+  const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "ek-streamdl-douyin-"));
+  const temporaryFiles: string[] = [];
+  const request = directRequestProfile("douyin", profile.resolvedUrl);
+  try {
+    const imagePaths: string[] = [];
+    if (mode !== "audio") {
+      for (let index = 0; index < imageUrls.length; index += 1) {
+        if (tasks.get(taskId)?.cancelled) throw new Error("下载已取消");
+        const imagePath = path.join(temporaryDirectory, `image-${String(index + 1).padStart(3, "0")}.img`);
+        await fetchDirectAsset(imageUrls[index], imagePath, request.userAgent, request.referer);
+        temporaryFiles.push(imagePath);
+        imagePaths.push(imagePath);
+        progress({
+          status: "downloading",
+          progress: Math.round(5 + ((index + 1) / imageUrls.length) * 25),
+          message: `下载图文素材 ${index + 1}/${imageUrls.length}`,
+        });
+      }
+    }
+
+    let audioPath: string | undefined;
+    if (audioUrl && mode !== "video") {
+      audioPath = path.join(temporaryDirectory, "audio-source");
+      await fetchDirectAsset(audioUrl, audioPath, request.userAgent, request.referer);
+      temporaryFiles.push(audioPath);
+      progress({ status: "downloading", progress: 34, message: "已下载原声音频" });
+    }
+
+    const duration = profile.durationSeconds
+      ?? durationFromDisplay(metadata.duration)
+      ?? Math.max(3, imagePaths.length * 3);
+    const base = uniqueBasePath(
+      directory,
+      `${metadata.suggestedFilename ?? metadata.title}${suffixForMode(mode)}`,
+      ["mp4", "m4a"],
+    );
+    tasks.get(taskId)?.trackedPrefixes.add(base);
+
+    const createVideo = async (output: string, includeAudio: boolean, start: number, end: number) => {
+      const secondsPerImage = Math.max(1, duration / imagePaths.length);
+      const inputs = imagePaths.flatMap((imagePath) => [
+        "-loop", "1",
+        "-t", secondsPerImage.toFixed(3),
+        "-i", imagePath,
+      ]);
+      if (includeAudio && audioPath) inputs.push("-i", audioPath);
+      const scaled = imagePaths.map((_, index) =>
+        `[${index}:v]scale=1280:720:force_original_aspect_ratio=decrease,`
+        + `pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30[v${index}]`,
+      );
+      const chain = imagePaths.map((_, index) => `[v${index}]`).join("");
+      const filter = `${scaled.join(";")};${chain}concat=n=${imagePaths.length}:v=1:a=0[outv]`;
+      const audioInputIndex = imagePaths.length;
+      await runFfmpegCommand(
+        ffmpeg,
+        [
+          ...inputs,
+          "-filter_complex", filter,
+          "-map", "[outv]",
+          ...(includeAudio && audioPath ? ["-map", `${audioInputIndex}:a:0`, "-c:a", "aac", "-shortest"] : ["-an"]),
+          "-c:v", "libx264",
+          "-preset", "veryfast",
+          "-crf", "18",
+          "-pix_fmt", "yuv420p",
+          "-movflags", "+faststart",
+          "-t", duration.toFixed(3),
+          output,
+        ],
+        taskId, duration, progress, start, end, includeAudio ? "正在合成图文视频" : "正在生成无声图文视频",
+      );
+    };
+
+    const createAudio = async (output: string, start: number, end: number) => {
+      if (!audioPath) throw new Error("下载失败：抖音图文作品未返回音频地址");
+      await runFfmpegCommand(
+        ffmpeg,
+        ["-i", audioPath, "-vn", "-c:a", "aac", "-b:a", "192k", output],
+        taskId, duration, progress, start, end, "正在生成音频文件",
+      );
+    };
+
+    if (mode === "audio") {
+      const output = `${base}.m4a`;
+      await createAudio(output, 35, 99);
+      return output;
+    }
+    if (mode === "video") {
+      const output = `${base}.mp4`;
+      await createVideo(output, false, 35, 99);
+      return output;
+    }
+    if (mode === "separate") {
+      const videoOutput = `${base}.mp4`;
+      const audioOutput = `${base}.m4a`;
+      await createVideo(videoOutput, false, 35, 75);
+      await createAudio(audioOutput, 76, 99);
+      return `视频 ${videoOutput}；音频 ${audioOutput}`;
+    }
+    const output = `${base}.mp4`;
+    await createVideo(output, Boolean(audioPath), 35, 99);
+    return output;
+  } finally {
+    for (const file of temporaryFiles) {
+      if (fs.existsSync(file)) fs.unlinkSync(file);
+    }
+    if (fs.existsSync(temporaryDirectory)) fs.rmdirSync(temporaryDirectory);
+  }
+}
+
+async function downloadViaDirectSharePage(
+  metadata: DirectVideoMetadata,
+  directory: string,
+  mode: DownloadMode,
+  taskId: string,
+  progress: (event: DownloadProgressEvent) => void,
+) {
+  progress({ status: "preparing", progress: 2, message: `刷新${metadata.platformName}下载地址` });
+  const refreshed = await directShareProfile(
+    metadata.platform,
+    metadata.originalUrl,
+    metadata.normalizedUrl,
+  ).catch(() => null);
+  const profile: DirectShareProfile = refreshed ?? {
+    id: metadata.id,
+    resolvedUrl: metadata.normalizedUrl,
+    title: metadata.title,
+    author: metadata.author,
+    publishedAt: metadata.publishedAt,
+    durationSeconds: durationFromDisplay(metadata.duration),
+    coverUrl: metadata.coverUrl,
+    qualities: metadata.qualities,
+    mediaUrl: metadata.directMediaUrl,
+    imageUrls: metadata.directImageUrls,
+    audioUrl: metadata.directAudioUrl,
+    kind: metadata.directMediaKind ?? "video",
+  };
+  if (profile.kind === "image-post") {
+    return downloadDouyinImagePost(metadata, profile, directory, mode, taskId, progress);
+  }
+  return downloadDirectVideo(metadata, profile, directory, mode, taskId, progress);
+}
+
 function weChatShortUri(raw: string) {
   const url = new URL(raw);
   return url.hostname === "weixin.qq.com"
@@ -513,6 +972,18 @@ export async function downloadVideo(
     let savedPath: string;
     if (metadata.platform === "wechatChannels") {
       savedPath = await downloadWeChat(metadata, directory, mode, taskId, progress);
+    } else if (
+      metadata.platform === "douyin"
+      || metadata.platform === "kuaishou"
+      || metadata.platform === "toutiao"
+    ) {
+      savedPath = await downloadViaDirectSharePage(
+        metadata as DirectVideoMetadata,
+        directory,
+        mode,
+        taskId,
+        progress,
+      );
     } else {
       const selected = metadata.selectedCollectionItems?.length ? metadata.selectedCollectionItems : null;
       if (selected) {

@@ -13,7 +13,14 @@ const PLATFORM_HOSTS: Record<SupportedPlatform, string[]> = {
     "www.kwai.com",
     "chenzhongtech.com",
   ],
-  xiaohongshu: ["xiaohongshu.com", "www.xiaohongshu.com", "xhslink.com", "www.xhslink.com"],
+  xiaohongshu: [
+    "xiaohongshu.com",
+    "www.xiaohongshu.com",
+    "xhslink.com",
+    "www.xhslink.com",
+    "xhslink.cn",
+    "www.xhslink.cn",
+  ],
   toutiao: ["toutiao.com", "www.toutiao.com", "m.toutiao.com"],
   wechatChannels: [],
 };
