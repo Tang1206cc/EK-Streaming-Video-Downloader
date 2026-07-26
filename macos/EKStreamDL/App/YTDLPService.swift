@@ -166,6 +166,13 @@ final class YTDLPService {
            ) {
             return metadata
         }
+        if platform == .toutiao,
+           let metadata = try? parseToutiaoViaMobilePage(
+            originalUrl: extractedUrl,
+            resolvedUrl: resolvedUrl
+           ) {
+            return metadata
+        }
 
         do {
             let infoData = try runYTDLP(arguments: ytdlpInfoArguments(
@@ -1897,8 +1904,7 @@ final class YTDLPService {
                 progress: progress
             )
         }
-        if metadata.platform == SupportedPlatform.toutiao.rawValue,
-           textOrNil(metadata.directMediaUrl) != nil {
+        if metadata.platform == SupportedPlatform.toutiao.rawValue {
             return try await downloadToutiaoViaMobilePage(
                 metadata: metadata,
                 downloadsDirectory: downloadsDirectory,
@@ -3173,10 +3179,22 @@ final class YTDLPService {
         mode: DownloadMode,
         progress: @escaping (DownloadProgressEvent) -> Void
     ) async throws -> String {
-        let refreshedProfile = try? requestToutiaoDirectProfile(url: metadata.normalizedUrl)
-        guard let mediaURL = textOrNil(refreshedProfile?.mediaURL)
-            ?? textOrNil(metadata.directMediaUrl) else {
+        let cachedMediaURL = textOrNil(metadata.directMediaUrl)
+        if cachedMediaURL == nil {
+            progress(DownloadProgressEvent(status: "preparing", progress: 3, message: "获取今日头条下载地址"))
+        }
+        let refreshedProfile = cachedMediaURL == nil
+            ? try? requestToutiaoDirectProfile(url: metadata.normalizedUrl)
+            : nil
+        guard let mediaURL = cachedMediaURL
+            ?? textOrNil(refreshedProfile?.mediaURL) else {
             throw UserFacingError("下载失败：今日头条播放地址已失效，请重新解析后再试")
+        }
+        let estimatedTotalBytes = metadata.estimatedSizeMb.flatMap { sizeMb -> Int64? in
+            guard sizeMb > 0 else {
+                return nil
+            }
+            return Int64((sizeMb * 1_048_576).rounded())
         }
 
         return try await downloadDirectMedia(
@@ -3185,7 +3203,7 @@ final class YTDLPService {
             downloadsDirectory: downloadsDirectory,
             mode: mode,
             duration: refreshedProfile?.duration ?? durationSeconds(from: metadata.duration),
-            totalBytes: refreshedProfile?.totalBytes,
+            totalBytes: refreshedProfile?.totalBytes ?? estimatedTotalBytes,
             progress: progress,
             userAgent: mobileUserAgent,
             referer: metadata.normalizedUrl,
