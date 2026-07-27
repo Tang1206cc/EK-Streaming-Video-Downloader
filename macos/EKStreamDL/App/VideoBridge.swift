@@ -259,7 +259,7 @@ final class VideoBridge: NSObject, WKScriptMessageHandler {
         var sections = [
             "EK StreamDL诊断报告",
             "生成时间：\(ISO8601DateFormatter().string(from: Date()))",
-            "应用版本：\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.0")",
+            "应用版本：\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.5")",
             "系统：\(process.operatingSystemVersionString)",
             "处理器：\(systemArchitecture())"
         ]

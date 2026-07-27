@@ -1,7 +1,7 @@
 {
   "name": "ek-streamdl-windows",
-  "version": "1.1.0",
-  "buildVersion": "13",
+  "version": "1.1.5",
+  "buildVersion": "14",
   "private": true,
   "author": "唐梓耀 (Emir Kaya)",
   "type": "module",
