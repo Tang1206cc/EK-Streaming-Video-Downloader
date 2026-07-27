@@ -313,7 +313,7 @@ enum NativeLanguageScript {
     static func source(language: String) -> String {
         """
         (() => {
-          const supportedLanguages = ["zh-Hans", "zh-Hant", "en"];
+          const supportedLanguages = ["zh-Hans", "zh-Hant", "en", "ja"];
           const normalizeLanguage = (value) => supportedLanguages.includes(value) ? value : "zh-Hans";
           window.__ekStreamDLLanguage = normalizeLanguage("\(language)");
           document.documentElement.lang = window.__ekStreamDLLanguage;

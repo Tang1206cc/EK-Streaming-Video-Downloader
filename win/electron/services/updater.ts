@@ -35,6 +35,18 @@ function strings(language: AppLanguage) {
     downloading: "Downloading the EK StreamDL update",
     preparing: "Preparing download…",
   };
+  if (language === "ja") return {
+    available: "EK StreamDL の新しいバージョンを利用できます",
+    current: "現在のバージョン",
+    latest: "最新バージョン",
+    update: "今すぐアップデート",
+    later: "後で",
+    none: "EK StreamDL は最新です。",
+    error: "アップデートを確認できません",
+    progressTitle: "EK StreamDL アップデート",
+    downloading: "EK StreamDL のアップデートをダウンロード中",
+    preparing: "ダウンロードを準備中…",
+  };
   if (language === "zh-Hant") return {
     available: "EK StreamDL 有新版本可用",
     current: "目前版本",

@@ -162,6 +162,7 @@ final class DownloadWindowController: NSWindowController, URLSessionDownloadDele
         case .simplifiedChinese: return minutes > 0 ? "\(minutes) 分 \(seconds) 秒" : "\(seconds) 秒"
         case .traditionalChinese: return minutes > 0 ? "\(minutes) 分 \(seconds) 秒" : "\(seconds) 秒"
         case .english: return minutes > 0 ? "\(minutes)m \(seconds)s" : "\(seconds)s"
+        case .japanese: return minutes > 0 ? "\(minutes)分\(seconds)秒" : "\(seconds)秒"
         }
     }
 }

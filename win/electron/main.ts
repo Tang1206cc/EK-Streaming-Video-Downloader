@@ -200,6 +200,14 @@ function installMenu() {
         help: "Help",
         checkForUpdates: "Check for Updates",
       }
+    : settings.language === "ja"
+      ? {
+          file: "ファイル",
+          preferences: "環境設定…",
+          exit: "終了",
+          help: "ヘルプ",
+          checkForUpdates: "アップデートを確認",
+        }
     : settings.language === "zh-Hant"
       ? {
           file: "檔案",

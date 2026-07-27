@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 export type ThemeMode = "system" | "light" | "dark";
-export type AppLanguage = "zh-Hans" | "zh-Hant" | "en";
+export type AppLanguage = "zh-Hans" | "zh-Hant" | "en" | "ja";
 
 export type AppSettings = {
   launchAtLogin: boolean;
@@ -36,7 +36,7 @@ export function readSettings(): AppSettings {
       themeMode: ["system", "light", "dark"].includes(parsed.themeMode ?? "")
         ? (parsed.themeMode as ThemeMode)
         : defaults.themeMode,
-      language: ["zh-Hans", "zh-Hant", "en"].includes(parsed.language ?? "")
+      language: ["zh-Hans", "zh-Hant", "en", "ja"].includes(parsed.language ?? "")
         ? (parsed.language as AppLanguage)
         : defaults.language,
     };

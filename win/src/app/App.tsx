@@ -1072,7 +1072,7 @@ function AboutModal({ onClose }: { onClose: () => void }) {
             <small>{t("点击可跳转 ↗")}</small>
           </a>
           <div className="about-contact-card about-copyable">{language === "en" ? "QQ: 2410710390 (same number for email)" : `QQ：2410710390（${t("邮箱同号")}）`}</div>
-          <div className="about-contact-card about-copyable">{language === "en" ? "QQ Group: 922281790" : `QQ群：922281790`}</div>
+          <div className="about-contact-card about-copyable">{language === "en" ? "QQ Group: 922281790" : language === "ja" ? "QQ グループ：922281790" : `QQ群：922281790`}</div>
         </div>
 
         <img
@@ -1265,6 +1265,8 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
                   {component.updateAvailable
                     ? language === "en"
                       ? `The current version is ready to use. Updating to ${component.latestVersion ?? "the latest version"} is recommended for compatibility. Update when the official release service is stably reachable; postponing it will not affect current use.`
+                      : language === "ja"
+                        ? `現在のバージョンはそのまま使用できます。互換性を保つため、${component.latestVersion ?? "最新バージョン"} への更新を推奨します。公式配布サービスへ安定して接続できるときに更新してください。延期しても現在の利用には影響しません。`
                       : language === "zh-Hant"
                         ? `目前版本可正常使用；建議更新至 ${component.latestVersion ?? "最新版本"} 以維持相容性。更新時請確保能穩定存取元件的官方發佈服務；暫不更新不影響目前使用。`
                         : `当前版本可正常使用；建议更新至 ${component.latestVersion ?? "最新版本"} 以保持兼容性。更新时请确保能够稳定访问组件的官方发布服务；暂不更新不影响当前使用。`
@@ -1386,13 +1388,23 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function formatEstimatedSize(value: number | undefined, language: "zh-Hans" | "zh-Hant" | "en") {
+function formatEstimatedSize(value: number | undefined, language: "zh-Hans" | "zh-Hant" | "en" | "ja") {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    return language === "zh-Hans" ? "预估大小未知" : language === "zh-Hant" ? "預估大小未知" : "Estimated size unavailable";
+    return language === "zh-Hans"
+      ? "预估大小未知"
+      : language === "zh-Hant"
+        ? "預估大小未知"
+        : language === "ja"
+          ? "推定サイズ不明"
+          : "Estimated size unavailable";
   }
 
   const roundedValue = value >= 100 ? Math.round(value) : Math.round(value * 10) / 10;
-  return language === "en" ? `Approx. ${roundedValue} MB` : `${language === "zh-Hant" ? "約" : "约"} ${roundedValue} MB`;
+  return language === "en"
+    ? `Approx. ${roundedValue} MB`
+    : language === "ja"
+      ? `約 ${roundedValue} MB`
+      : `${language === "zh-Hant" ? "約" : "约"} ${roundedValue} MB`;
 }
 
 function getInitialCollectionSelection(metadata: VideoMetadata) {
@@ -1427,7 +1439,7 @@ function CollectionSelector({
     .map((itemId) => items.find((item) => item.id === itemId)?.index)
     .filter((index): index is number => typeof index === "number")
     .sort((left, right) => left - right)
-    .map((index) => language === "en" ? `Episode ${index}` : `第${index}集`)
+    .map((index) => language === "en" ? `Episode ${index}` : language === "ja" ? `第${index}話` : `第${index}集`)
     .join(language === "en" ? ", " : "、");
 
   function toggleItem(itemId: string) {
@@ -1481,7 +1493,7 @@ function CollectionSelector({
                   checked={draftSelection.includes(item.id)}
                   onChange={() => toggleItem(item.id)}
                 />
-                <span className="collection-item-index">{language === "en" ? `Episode ${item.index}` : `第 ${item.index} 集`}</span>
+                <span className="collection-item-index">{language === "en" ? `Episode ${item.index}` : language === "ja" ? `第 ${item.index} 話` : `第 ${item.index} 集`}</span>
                 <span className="collection-item-title">{item.title}</span>
               </label>
             ))}
@@ -1639,7 +1651,7 @@ function DownloadListItem({
         <div className="download-list-item-meta">
           <span>{td(task.metadata.platformName)}</span>
           <span>{t(modeLabel)}</span>
-          {selectedCollectionItem ? <span>{language === "en" ? `Episode ${selectedCollectionItem.index}` : `第 ${selectedCollectionItem.index} 集`}</span> : null}
+          {selectedCollectionItem ? <span>{language === "en" ? `Episode ${selectedCollectionItem.index}` : language === "ja" ? `第 ${selectedCollectionItem.index} 話` : `第 ${selectedCollectionItem.index} 集`}</span> : null}
           {collectionCount > 1 ? <span>{language === "en" ? `Collection · ${collectionCount} episodes` : `${t("合集")} ${collectionCount} ${t("集")}`}</span> : null}
           <span>{t(getDownloadStatusLabel(task.status))}</span>
         </div>
