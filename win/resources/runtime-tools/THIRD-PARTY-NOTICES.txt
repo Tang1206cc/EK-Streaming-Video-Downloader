@@ -1,0 +1,17 @@
+EK StreamDL bundled runtime components
+
+yt-dlp 2026.07.04 (Windows x64)
+Source: https://github.com/yt-dlp/yt-dlp/releases/tag/2026.07.04
+Payload SHA-256: 52fe3c26dcf71fbdc85b528589020bb0b8e383155cfa81b64dd447bbe35e24b8
+License: Unlicense
+
+FFmpeg n7.1.5-10-g2aefd64d48 LGPL build (Windows x64)
+Source: https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-07-26-13-28
+Upstream archive SHA-256: 4b1945648603ab558c4959d20c1e781e70126d7f98643aa48475e1f3ee98d0b6
+Bundled gzip SHA-256: da596951baa9efcb97b53f0ccaa94b4405581f815132d2bde455dfb90af50ac1
+Payload SHA-256: 43b4a15188af58c736726b9a92da3054c5822faf2e1c3ebb1ed2dfdb856c7551
+License: LGPL; see FFMPEG-LGPL-LICENSE.txt
+
+These fixed, verified copies provide an offline-ready baseline. The in-app
+environment tool may optionally retrieve newer components from their official
+release services.

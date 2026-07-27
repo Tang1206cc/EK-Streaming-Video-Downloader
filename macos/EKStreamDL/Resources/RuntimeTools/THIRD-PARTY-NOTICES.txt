@@ -1,0 +1,16 @@
+EK StreamDL bundled runtime components
+
+yt-dlp 2026.07.04 (macOS universal)
+Source: https://github.com/yt-dlp/yt-dlp/releases/tag/2026.07.04
+Payload SHA-256: 498bd0dae17855c599d371d68ec5bafc439a9d8640e838be25c765a9792f261b
+License: Unlicense
+
+FFmpeg 7.1.1 LGPL build n7.1.1-4 (macOS arm64)
+Source: https://github.com/myndrai/myndr-ffmpeg-lgpl/releases/tag/n7.1.1-4
+Archive SHA-256: 31a56b291f0a91dc43d0d79d2a3d326b4c3bc1915a424b361ca6af6b791cc5fc
+Payload SHA-256: d81f2a1fc5bfa4d0203c2e5b38eaba71c974594870691e63b085b9507fa4ead6
+License: LGPL; the upstream archive includes its license files and BUILDINFO.
+
+These fixed, verified copies provide an offline-ready baseline. The in-app
+environment tool may optionally retrieve newer components from their official
+release services.

@@ -18,6 +18,12 @@ export function managedFfmpegPath() {
   return path.join(managedToolsDirectory(), "ffmpeg.exe");
 }
 
+export function bundledToolsDirectory() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "runtime-tools")
+    : path.join(app.getAppPath(), "resources", "runtime-tools");
+}
+
 export function defaultDownloadsDirectory() {
   return app.getPath("downloads") || path.join(os.homedir(), "Downloads");
 }

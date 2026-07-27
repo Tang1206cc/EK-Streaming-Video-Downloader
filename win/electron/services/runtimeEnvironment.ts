@@ -13,6 +13,7 @@ import type {
 } from "../bridgeTypes.js";
 import { appendDiagnostic } from "./diagnostics.js";
 import {
+  bundledToolsDirectory,
   defaultDownloadsDirectory,
   managedFfmpegPath,
   managedToolsDirectory,
@@ -22,6 +23,7 @@ import {
 } from "./paths.js";
 import { runProcess } from "./processRunner.js";
 import { checksumForFile } from "./releaseContract.js";
+import { windowsDownloadCandidates } from "./windowsDownloadSources.js";
 
 const YTDLP_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
 const YTDLP_SUMS_URL = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/SHA2-256SUMS";
@@ -34,12 +36,19 @@ const FFMPEG_URL = "https://github.com/BtbN/FFmpeg-Builds/releases/latest/downlo
 const FFMPEG_SUMS_URL = "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/checksums.sha256";
 const FFMPEG_ARCHIVE_NAME = "ffmpeg-master-latest-win64-gpl.zip";
 const DOWNLOAD_STALL_TIMEOUT_MS = 30_000;
+const BUNDLED_YTDLP_SHA256 = "52fe3c26dcf71fbdc85b528589020bb0b8e383155cfa81b64dd447bbe35e24b8";
+const BUNDLED_FFMPEG_SHA256 = "43b4a15188af58c736726b9a92da3054c5822faf2e1c3ebb1ed2dfdb856c7551";
 
 type FfmpegDownloadAsset = {
   url: string;
   sha256: string;
   fileName: string;
   format: "gzip" | "zip";
+};
+
+type YtDlpDownloadAsset = {
+  url: string;
+  sha256: string;
 };
 
 const platformProbeURLs = [
@@ -69,6 +78,23 @@ async function fetchText(url: string, timeoutMs = 30_000) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function fetchTextFromCandidates(url: string, timeoutMs = 15_000) {
+  let lastError: unknown;
+  const candidates = windowsDownloadCandidates(url);
+  for (let index = 0; index < candidates.length; index += 1) {
+    try {
+      return await fetchText(candidates[index], timeoutMs);
+    } catch (error) {
+      lastError = error;
+      appendDiagnostic(
+        "环境安装",
+        `文本下载源 ${index + 1}/${candidates.length} 失败：${error instanceof Error ? error.message : "未知错误"}`,
+      );
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("无法取得下载信息");
 }
 
 async function inspectTool(
@@ -238,8 +264,29 @@ async function latestYtDlpVersion() {
   }
 }
 
+async function latestYtDlpAsset(): Promise<YtDlpDownloadAsset> {
+  try {
+    const release = JSON.parse(await fetchText(YTDLP_RELEASE_API, 15_000)) as {
+      assets?: Array<{ name?: string; browser_download_url?: string; digest?: string }>;
+    };
+    const asset = release.assets?.find((candidate) => candidate.name === "yt-dlp.exe");
+    const digest = asset?.digest?.replace(/^sha256:/i, "").toLowerCase();
+    if (asset?.browser_download_url && digest && /^[a-f0-9]{64}$/.test(digest)) {
+      return { url: asset.browser_download_url, sha256: digest };
+    }
+  } catch (error) {
+    appendDiagnostic(
+      "环境安装",
+      `yt-dlp Release 信息读取失败，改用校验清单：${error instanceof Error ? error.message : "未知错误"}`,
+    );
+  }
+  const expected = checksumForFile(await fetchTextFromCandidates(YTDLP_SUMS_URL), "yt-dlp.exe");
+  return { url: YTDLP_URL, sha256: expected };
+}
+
 export async function checkRuntimeEnvironment(): Promise<RuntimeEnvironmentReport> {
   appendDiagnostic("环境检查", "开始执行 Windows 运行环境检查");
+  await materializeBundledRuntimeTools();
   const [network, ytDlp, ffmpeg, latestVersion] = await Promise.all([
     inspectNetwork(),
     inspectTool("yt-dlp", "yt-dlp", "解析视频页面信息并获取可下载的视频、音频资源", resolveYtDlpPath(), ["--version"]),
@@ -249,7 +296,9 @@ export async function checkRuntimeEnvironment(): Promise<RuntimeEnvironmentRepor
   if (ytDlp.installed && latestVersion) {
     ytDlp.latestVersion = latestVersion;
     ytDlp.updateAvailable = Boolean(ytDlp.version && ytDlp.version !== latestVersion);
-    if (ytDlp.updateAvailable) ytDlp.detail += `；可更新至 ${latestVersion}`;
+    if (ytDlp.updateAvailable) {
+      ytDlp.detail += `；当前版本可正常使用，建议更新至 ${latestVersion} 以保持兼容性。更新时请确保能够稳定访问组件的官方发布服务；暂不更新不影响当前使用`;
+    }
   }
   const components = [inspectWindows(), inspectDownloads(), network, ytDlp, ffmpeg];
   const missingComponentIds = components.filter((item) => item.required && !item.installed).map((item) => item.id);
@@ -281,6 +330,38 @@ async function sha256(filePath: string) {
     stream.on("error", reject);
     stream.on("end", () => resolve(hash.digest("hex")));
   });
+}
+
+async function materializeBundledTool(
+  archiveName: string,
+  destination: string,
+  expectedHash: string,
+  componentName: string,
+) {
+  if (fs.existsSync(destination)) return;
+  const archive = path.join(bundledToolsDirectory(), archiveName);
+  if (!fs.existsSync(archive)) return;
+
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  const staged = `${destination}.${crypto.randomUUID()}.bundled`;
+  try {
+    await pipeline(fs.createReadStream(archive), createGunzip(), fs.createWriteStream(staged));
+    const actualHash = await sha256(staged);
+    if (actualHash !== expectedHash) throw new Error("随包组件 SHA-256 校验失败");
+    fs.renameSync(staged, destination);
+    appendDiagnostic("环境检查", `已启用应用随附的 ${componentName}`);
+  } catch (error) {
+    if (fs.existsSync(staged)) fs.unlinkSync(staged);
+    appendDiagnostic(
+      "环境检查",
+      `应用随附的 ${componentName} 无法启用：${error instanceof Error ? error.message : "未知错误"}`,
+    );
+  }
+}
+
+async function materializeBundledRuntimeTools() {
+  await materializeBundledTool("yt-dlp.exe.gz", managedYtDlpPath(), BUNDLED_YTDLP_SHA256, "yt-dlp");
+  await materializeBundledTool("ffmpeg.exe.gz", managedFfmpegPath(), BUNDLED_FFMPEG_SHA256, "FFmpeg");
 }
 
 async function downloadWithResume(
@@ -369,6 +450,30 @@ async function downloadWithResume(
   throw lastError instanceof Error ? lastError : new Error("下载失败");
 }
 
+async function downloadFromCandidates(
+  url: string,
+  destination: string,
+  expectedHash: string,
+  onProgress: (value: number) => void,
+  maxAttemptsPerSource = 1,
+) {
+  let lastError: unknown;
+  const candidates = windowsDownloadCandidates(url);
+  for (let index = 0; index < candidates.length; index += 1) {
+    try {
+      await downloadWithResume(candidates[index], destination, expectedHash, onProgress, maxAttemptsPerSource);
+      return;
+    } catch (error) {
+      lastError = error;
+      appendDiagnostic(
+        "环境安装",
+        `文件下载源 ${index + 1}/${candidates.length} 失败：${error instanceof Error ? error.message : "未知错误"}`,
+      );
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("所有下载源均不可用");
+}
+
 function pinnedStaticFfmpegAsset(): FfmpegDownloadAsset {
   return {
     url: FFMPEG_STATIC_PINNED_URL,
@@ -421,7 +526,7 @@ async function verifyExecutableWithRetry(executable: string, arguments_: string[
 async function installFfmpegAsset(asset: FfmpegDownloadAsset, onProgress: (value: number) => void, maxAttempts: number) {
   const cacheDirectory = path.join(managedToolsDirectory(), "DownloadCache");
   const archive = path.join(cacheDirectory, `${asset.sha256}-${asset.fileName}`);
-  await downloadWithResume(asset.url, archive, asset.sha256, onProgress, maxAttempts);
+  await downloadFromCandidates(asset.url, archive, asset.sha256, onProgress, maxAttempts);
 
   const stagingId = crypto.randomUUID();
   const stagedPayload = path.join(managedToolsDirectory(), `ffmpeg-${stagingId}.payload`);
@@ -485,9 +590,9 @@ export async function installRuntimeEnvironment(
     const base = 5 + Math.round((index / actionable.length) * 88);
     const span = Math.round(88 / actionable.length);
     if (component.id === "yt-dlp") {
-      onProgress({ progress: base, message: "正在读取 yt-dlp 校验清单", componentId: component.id });
-      const expected = checksumForFile(await fetchText(YTDLP_SUMS_URL), "yt-dlp.exe");
-      await downloadWithResume(YTDLP_URL, managedYtDlpPath(), expected, (value) => {
+      onProgress({ progress: base, message: "正在读取 yt-dlp 下载信息", componentId: component.id });
+      const asset = await latestYtDlpAsset();
+      await downloadFromCandidates(asset.url, managedYtDlpPath(), asset.sha256, (value) => {
         onProgress({ progress: base + Math.round((value / 100) * span), message: "正在安装 yt-dlp", componentId: component.id });
       });
     }
@@ -514,7 +619,7 @@ export async function installRuntimeEnvironment(
       }
       if (!installed) {
         try {
-          const fallbackExpected = checksumForFile(await fetchText(FFMPEG_SUMS_URL), FFMPEG_ARCHIVE_NAME);
+          const fallbackExpected = checksumForFile(await fetchTextFromCandidates(FFMPEG_SUMS_URL), FFMPEG_ARCHIVE_NAME);
           await installSource(
             { url: FFMPEG_URL, sha256: fallbackExpected, fileName: FFMPEG_ARCHIVE_NAME, format: "zip" },
             1,

@@ -49,6 +49,13 @@
       "dist-electron/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "resources/runtime-tools",
+        "to": "runtime-tools",
+        "filter": ["**/*"]
+      }
+    ],
     "asar": true,
     "win": {
       "target": [

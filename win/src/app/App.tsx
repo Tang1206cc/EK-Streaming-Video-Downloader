@@ -1233,7 +1233,7 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <p className="environment-intro">
-          {t("本功能会检查视频解析、下载及媒体处理所需组件。应用会优先复用设备上已有工具；缺失时仅安装应用专用副本，无需安装 Python、Node.js 或包管理器，也不会改动已有工具。")}
+          {t("本功能会检查视频解析、下载及媒体处理所需组件。应用已随附可直接使用的基础组件，也会复用设备上的现有工具；联网更新为可选操作，无需安装 Python、Node.js 或包管理器。")}
         </p>
 
         <div className="environment-component-list">
@@ -1249,7 +1249,7 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
             const statusText = !hasReport
               ? "待检查"
               : component.updateAvailable
-                ? "建议更新"
+                ? "当前可用，建议更新"
                 : component.installed
                   ? "已就绪"
                   : "需配置";
@@ -1262,8 +1262,13 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
                 <p>{td(component.purpose)}</p>
                 <small title={component.path ?? component.detail}>
                   {component.version ? `${component.version} · ` : ""}
-                  {td(component.detail)}
-                  {component.latestVersion ? ` · ${t("最新")} ${component.latestVersion}` : ""}
+                  {component.updateAvailable
+                    ? language === "en"
+                      ? `The current version is ready to use. Updating to ${component.latestVersion ?? "the latest version"} is recommended for compatibility. Update when the official release service is stably reachable; postponing it will not affect current use.`
+                      : language === "zh-Hant"
+                        ? `目前版本可正常使用；建議更新至 ${component.latestVersion ?? "最新版本"} 以維持相容性。更新時請確保能穩定存取元件的官方發佈服務；暫不更新不影響目前使用。`
+                        : `当前版本可正常使用；建议更新至 ${component.latestVersion ?? "最新版本"} 以保持兼容性。更新时请确保能够稳定访问组件的官方发布服务；暂不更新不影响当前使用。`
+                    : td(component.detail)}
                 </small>
               </article>
             );
@@ -1283,7 +1288,7 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
           </div>
         ) : null}
 
-        {stage === "ready" ? <p className="environment-ready">{t("✅当前设备环境齐全，无需配置")}</p> : null}
+        {stage === "ready" ? <p className="environment-ready">{t("✅当前设备环境齐全，可直接使用")}</p> : null}
         {stage === "result" && (missingComponents.length > 0 || recommendedComponents.length > 0) ? (
           <p className="environment-needed">
             {actionableComponents.length > 0
@@ -1305,7 +1310,7 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
           ) : null}
           {stage === "result" && actionableComponents.length > 0 ? (
             <button type="button" className="primary-button environment-install-button" onClick={handleInstallEnvironment}>
-              {t("一键安装/更新")}
+              {t(installableMissingComponents.length > 0 ? "一键安装/更新" : "更新组件（可选）")}
             </button>
           ) : null}
           {stage === "result" && actionableComponents.length === 0 ? (
@@ -1344,7 +1349,7 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
         ) : null}
 
         <p className="environment-source-note">
-          {t("自动配置需要联网；下载支持断点续传与最多 3 次重试，安装文件通过 HTTPS 获取并进行 SHA-256 完整性校验。FFmpeg 会按 Windows x64 架构使用主、备发行源。")}
+          {t("应用随附基础组件，无需联网即可满足首次使用；仅可选更新需要联网。下载支持断点续传与重试，并执行 SHA-256 完整性校验。")}
         </p>
         <details className="third-party-notices">
           <summary>{t("第三方组件来源与许可")}</summary>
@@ -1356,9 +1361,9 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
                   <a href="https://github.com/yt-dlp/yt-dlp"> official yt-dlp GitHub repository</a> under the Unlicense.
                 </p>
                 <p>
-                  <strong>FFmpeg</strong> inspects, merges, and converts media. The primary Windows x64 source is
-                  <a href="https://github.com/eugeneware/ffmpeg-static"> ffmpeg-static</a>; the fallback source is
-                  <a href="https://github.com/BtbN/FFmpeg-Builds"> BtbN FFmpeg Builds</a>. The installed GPL build is governed by its bundled third-party licenses.
+                  <strong>FFmpeg</strong> inspects, merges, and converts media. The included Windows x64 baseline is an
+                  <a href="https://github.com/BtbN/FFmpeg-Builds"> LGPL build from BtbN FFmpeg Builds</a>. Optional online update sources remain
+                  <a href="https://github.com/eugeneware/ffmpeg-static"> ffmpeg-static</a> and BtbN FFmpeg Builds.
                 </p>
               </>
             ) : (
@@ -1368,10 +1373,9 @@ function EnvironmentSetupModal({ onClose }: { onClose: () => void }) {
                   <a href="https://github.com/yt-dlp/yt-dlp"> yt-dlp {t("官方 GitHub")}</a>，{t("遵循 Unlicense 许可。")}
                 </p>
                 <p>
-                  <strong>FFmpeg</strong>：{t("用于媒体检查、合并与转换，Windows x64 主源为")}
-                  <a href="https://github.com/eugeneware/ffmpeg-static"> ffmpeg-static</a>
-                  {t("备用源为")}
-                  <a href="https://github.com/BtbN/FFmpeg-Builds"> BtbN FFmpeg Builds</a>；{t("实际适用的 GPL 与第三方许可条款以安装包内文件为准。")}
+                  <strong>FFmpeg</strong>：{t("用于媒体检查、合并与转换；随附的 Windows x64 基础版本为")}
+                  <a href="https://github.com/BtbN/FFmpeg-Builds"> BtbN FFmpeg Builds LGPL</a>
+                  {t(" 构建；可选联网更新仍沿用 ffmpeg-static 与 BtbN 官方发布源，具体许可随实际版本适用。")}
                 </p>
               </>
             )}

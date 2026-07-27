@@ -93,6 +93,8 @@ enum RuntimeToolPaths {
 
 actor RuntimeEnvironmentService {
     private let fileManager = FileManager.default
+    private let bundledYTDLPSHA256 = "498bd0dae17855c599d371d68ec5bafc439a9d8640e838be25c765a9792f261b"
+    private let bundledFFmpegSHA256 = "d81f2a1fc5bfa4d0203c2e5b38eaba71c974594870691e63b085b9507fa4ead6"
     private let ytDLPChecksumsURL = URL(
         string: "https://github.com/yt-dlp/yt-dlp/releases/latest/download/SHA2-256SUMS"
     )!
@@ -113,6 +115,7 @@ actor RuntimeEnvironmentService {
 
     func checkEnvironment() async -> RuntimeEnvironmentReport {
         DiagnosticLogStore.shared.append("环境检查", "开始执行完整运行环境检查")
+        materializeBundledRuntimeTools()
         let operatingSystem = inspectOperatingSystem()
         let downloadsDirectory = inspectDownloadsDirectory()
         let network = await inspectPlatformNetwork()
@@ -129,7 +132,7 @@ actor RuntimeEnvironmentService {
             let currentVersion = normalizedVersion(ytDLP.version)
             ytDLP.updateAvailable = currentVersion.map { $0 != latestVersion } ?? false
             if ytDLP.updateAvailable == true {
-                ytDLP.detail += "；可更新至 \(latestVersion)"
+                ytDLP.detail += "；当前版本可正常使用，建议更新至 \(latestVersion) 以保持兼容性。更新时请确保能够稳定访问组件的官方发布服务；暂不更新不影响当前使用"
             }
         }
         let ffmpeg = inspectFFmpeg()
@@ -164,6 +167,91 @@ actor RuntimeEnvironmentService {
             checkedAt: ISO8601DateFormatter().string(from: Date()),
             diagnostics: diagnostics
         )
+    }
+
+    private func materializeBundledRuntimeTools() {
+        materializeBundledTool(
+            resourceName: "yt-dlp_macos",
+            resourceExtension: "gz",
+            payload: .gzip,
+            destination: try? RuntimeToolPaths.managedYTDLPURL(),
+            expectedHash: bundledYTDLPSHA256,
+            componentName: "yt-dlp"
+        )
+        materializeBundledTool(
+            resourceName: "ffmpeg-macos-arm64",
+            resourceExtension: "zip",
+            payload: .zip(entryName: "ffmpeg"),
+            destination: try? RuntimeToolPaths.managedFFmpegURL(),
+            expectedHash: bundledFFmpegSHA256,
+            componentName: "FFmpeg"
+        )
+    }
+
+    private func materializeBundledTool(
+        resourceName: String,
+        resourceExtension: String,
+        payload: RuntimeDownloadPayload,
+        destination: URL?,
+        expectedHash: String,
+        componentName: String
+    ) {
+        guard let destination,
+              !fileManager.fileExists(atPath: destination.path),
+              let archiveURL = Bundle.main.url(
+                forResource: resourceName,
+                withExtension: resourceExtension,
+                subdirectory: "RuntimeTools"
+              ) ?? Bundle.main.url(forResource: resourceName, withExtension: resourceExtension) else {
+            return
+        }
+
+        var extractedURL: URL?
+        let stagingURL = destination
+            .deletingLastPathComponent()
+            .appendingPathComponent(".\(destination.lastPathComponent).\(UUID().uuidString).bundled")
+        defer {
+            if let extractedURL {
+                try? fileManager.removeItem(at: extractedURL)
+            }
+            try? fileManager.removeItem(at: stagingURL)
+        }
+
+        do {
+            try fileManager.createDirectory(
+                at: destination.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            switch payload {
+            case .raw:
+                extractedURL = archiveURL
+            case let .zip(entryName):
+                extractedURL = try extractZipEntry(
+                    named: entryName,
+                    from: archiveURL,
+                    componentName: componentName
+                )
+            case .gzip:
+                extractedURL = try extractGzip(from: archiveURL, componentName: componentName)
+            }
+            guard let extractedURL else {
+                throw UserFacingError("应用随附的 \(componentName) 内容为空")
+            }
+            let actualHash = try sha256(of: extractedURL)
+            guard actualHash.caseInsensitiveCompare(expectedHash) == .orderedSame else {
+                throw UserFacingError("应用随附的 \(componentName) 完整性校验失败")
+            }
+            try fileManager.moveItem(at: extractedURL, to: stagingURL)
+            try fileManager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: stagingURL.path)
+            clearQuarantine(at: stagingURL)
+            try fileManager.moveItem(at: stagingURL, to: destination)
+            DiagnosticLogStore.shared.append("环境检查", "已启用应用随附的 \(componentName)")
+        } catch {
+            DiagnosticLogStore.shared.append(
+                "环境检查",
+                "应用随附的 \(componentName) 无法启用：\(error.localizedDescription)"
+            )
+        }
     }
 
     func installMissingComponents(
@@ -861,11 +949,15 @@ actor RuntimeEnvironmentService {
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
-    private func extractZipEntry(named entryName: String, from archiveURL: URL) throws -> URL {
+    private func extractZipEntry(
+        named entryName: String,
+        from archiveURL: URL,
+        componentName: String = "FFmpeg"
+    ) throws -> URL {
         let extractedURL = fileManager.temporaryDirectory
             .appendingPathComponent("ek-streamdl-runtime-extracted-\(UUID().uuidString)")
         guard fileManager.createFile(atPath: extractedURL.path, contents: nil) else {
-            throw UserFacingError("无法准备 FFmpeg 解压文件")
+            throw UserFacingError("无法准备 \(componentName) 解压文件")
         }
 
         do {
@@ -887,21 +979,21 @@ actor RuntimeEnvironmentService {
                     kill(process.processIdentifier, SIGKILL)
                     finished.wait()
                 }
-                throw UserFacingError("FFmpeg 安装文件解压超时")
+                throw UserFacingError("\(componentName) 安装文件解压超时")
             }
             guard process.terminationStatus == 0 else {
                 let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
                 let errorText = String(data: errorData, encoding: .utf8)?
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 if let errorText, !errorText.isEmpty {
-                    throw UserFacingError("FFmpeg 解压失败：\(errorText)")
+                    throw UserFacingError("\(componentName) 解压失败：\(errorText)")
                 }
-                throw UserFacingError("FFmpeg 安装文件解压失败")
+                throw UserFacingError("\(componentName) 安装文件解压失败")
             }
             let attributes = try fileManager.attributesOfItem(atPath: extractedURL.path)
             let fileSize = (attributes[.size] as? NSNumber)?.int64Value ?? 0
             guard fileSize > 0 else {
-                throw UserFacingError("FFmpeg 安装文件内容为空")
+                throw UserFacingError("\(componentName) 安装文件内容为空")
             }
             return extractedURL
         } catch {
@@ -910,11 +1002,14 @@ actor RuntimeEnvironmentService {
         }
     }
 
-    private func extractGzip(from archiveURL: URL) throws -> URL {
+    private func extractGzip(
+        from archiveURL: URL,
+        componentName: String = "FFmpeg"
+    ) throws -> URL {
         let extractedURL = fileManager.temporaryDirectory
             .appendingPathComponent("ek-streamdl-runtime-gzip-\(UUID().uuidString)")
         guard fileManager.createFile(atPath: extractedURL.path, contents: nil) else {
-            throw UserFacingError("无法准备 FFmpeg 解压文件")
+            throw UserFacingError("无法准备 \(componentName) 解压文件")
         }
 
         do {
@@ -936,15 +1031,15 @@ actor RuntimeEnvironmentService {
                     kill(process.processIdentifier, SIGKILL)
                     finished.wait()
                 }
-                throw UserFacingError("FFmpeg 安装文件解压超时")
+                throw UserFacingError("\(componentName) 安装文件解压超时")
             }
             guard process.terminationStatus == 0 else {
-                throw UserFacingError("FFmpeg 安装文件解压失败")
+                throw UserFacingError("\(componentName) 安装文件解压失败")
             }
             let attributes = try fileManager.attributesOfItem(atPath: extractedURL.path)
             let fileSize = (attributes[.size] as? NSNumber)?.int64Value ?? 0
             guard fileSize > 0 else {
-                throw UserFacingError("FFmpeg 安装文件内容为空")
+                throw UserFacingError("\(componentName) 安装文件内容为空")
             }
             return extractedURL
         } catch {

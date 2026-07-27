@@ -31,6 +31,7 @@
 		100000000000000000000116 /* Relaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000216 /* Relaunch.swift */; };
 		100000000000000000000117 /* UpdaterHelper in CopyFiles */ = {isa = PBXBuildFile; fileRef = 100000000000000000000302 /* UpdaterHelper */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		100000000000000000000118 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000217 /* Assets.xcassets */; };
+		100000000000000000000119 /* RuntimeTools in Resources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000218 /* RuntimeTools */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -80,6 +81,7 @@
 		100000000000000000000215 /* FileOps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileOps.swift; sourceTree = "<group>"; };
 		100000000000000000000216 /* Relaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Relaunch.swift; sourceTree = "<group>"; };
 		100000000000000000000217 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = EKStreamDL/Assets.xcassets; sourceTree = "<group>"; };
+		100000000000000000000218 /* RuntimeTools */ = {isa = PBXFileReference; lastKnownFileType = folder; path = EKStreamDL/Resources/RuntimeTools; sourceTree = "<group>"; };
 		100000000000000000000301 /* EK StreamDL.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "EK StreamDL.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		100000000000000000000302 /* UpdaterHelper */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = UpdaterHelper; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -107,6 +109,7 @@
 			children = (
 				100000000000000000000502 /* App */,
 				100000000000000000000217 /* Assets.xcassets */,
+				100000000000000000000218 /* RuntimeTools */,
 				100000000000000000000505 /* UpdaterHelper */,
 				100000000000000000000207 /* dist */,
 				100000000000000000000503 /* Products */,
@@ -248,6 +251,7 @@
 			files = (
 				100000000000000000000107 /* dist in Resources */,
 				100000000000000000000118 /* Assets.xcassets in Resources */,
+				100000000000000000000119 /* RuntimeTools in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
